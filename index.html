@@ -1419,7 +1419,8 @@ function rebuildTimesheetOnly(raw){
   const filterSepEl=document.querySelector('.filter-sep');
   if(monthTabsEl) monthTabsEl.style.display=allMonths.length>0?'':'none';
   if(filterSepEl) filterSepEl.style.display=allMonths.length>0?'':'none';
-  const fuzzyPairs=findFuzzyDuplicates(employeesByMonth[selectedMonth]||[]);
+  const fuzzyPairs0=findFuzzyDuplicates(employeesByMonth[selectedMonth]||[]);
+  const fuzzyPairs=autoResolveDuplicates(fuzzyPairs0);
   if(fuzzyPairs.length>0){ showDupReview(fuzzyPairs); return; }
   initDashboard();
 }
@@ -1617,7 +1618,8 @@ function buildData(raw,ml){
 
   // Check for fuzzy duplicates before showing dashboard
   const currentMonthEmps = employeesByMonth[selectedMonth]||[];
-  const fuzzyPairs = findFuzzyDuplicates(currentMonthEmps);
+  const fuzzyPairs0 = findFuzzyDuplicates(currentMonthEmps);
+  const fuzzyPairs = autoResolveDuplicates(fuzzyPairs0);
   if(fuzzyPairs.length>0){
     showDupReview(fuzzyPairs);
     return;
@@ -3892,6 +3894,34 @@ function findFuzzyDuplicates(emps){
     }
   }
   return pairs;
+}
+
+// A status counts as "valid/final" if the timesheet was actually entered/submitted —
+// i.e. anything other than NOT-ENTERED / NOT-SUBMITTED / blank.
+function isValidStatus(s){
+  const u=(s||'').toUpperCase().replace(/[\s_]/g,'-');
+  return u!=='' && u!=='NOT-ENTERED' && u!=='NOT-SUBMITTED';
+}
+
+// Given fuzzy-duplicate pairs (typically same person under an old ID + new ID after an
+// offshore/onshore move), automatically keep whichever record has a valid/submitted status
+// and drop the other WITHOUT asking the user — but only when exactly one side qualifies.
+// Pairs where both are valid, or both are still Not-Entered/Not-Submitted, are left for manual review.
+function autoResolveDuplicates(pairs){
+  const codesToDrop=new Set();
+  const remaining=[];
+  pairs.forEach(p=>{
+    const v1=isValidStatus(p.emp1.status), v2=isValidStatus(p.emp2.status);
+    if(v1 && !v2){ codesToDrop.add(p.emp2.code); }
+    else if(v2 && !v1){ codesToDrop.add(p.emp1.code); }
+    else { remaining.push(p); } // both valid, or both still pending — needs manual review
+  });
+  if(codesToDrop.size>0){
+    allMonths.forEach(m=>{
+      employeesByMonth[m]=(employeesByMonth[m]||[]).filter(e=>!codesToDrop.has(e.code));
+    });
+  }
+  return remaining;
 }
 
 // Exact duplicate finder (for renderBillTable highlight - same name exact)
