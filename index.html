@@ -226,6 +226,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
       👥 Update Team Data
       <input type="file" id="teamDataInputHdr" accept=".xlsx,.xls" style="display:none" onchange="updateTeamDataOnly(this.files[0])">
     </label>
+    <button class="file-btn" id="checkDupBtn" style="display:none" onclick="runDuplicateCheckNow()" title="Scan currently loaded data for duplicate resources (same person under old/new ID)">🔍 Check Duplicates</button>
     <button class="file-btn" id="exportSessionBtn" onclick="exportSession()" title="Export full session to share or resume on another device">⬆ Export session</button>
     <label class="file-btn" id="loadSessionBtn" title="Load a previously exported session file">
       ⬇ Load session
@@ -1632,7 +1633,7 @@ function initDashboard(){
   document.getElementById('uploadScreen').style.display='none';
   document.getElementById('dupReviewScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
-  document.getElementById('changeBtnWrap').style.display='flex';
+  document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
   if(_teamDataOnly){
     // Show month filter bar with just practice filter (no month tabs)
     document.getElementById('monthFilterBar').style.display='flex';
@@ -2602,7 +2603,7 @@ function loadState(){
     document.getElementById('monthFilterBar').style.display='flex';
     document.getElementById('uploadScreen').style.display='none';
     document.getElementById('dashboard').style.display='block';
-    document.getElementById('changeBtnWrap').style.display='flex';
+    document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
     document.getElementById('clearSaveBtn').style.display='flex';
@@ -2762,7 +2763,7 @@ function loadSessionFile(file){
       document.getElementById('monthFilterBar').style.display='flex';
       document.getElementById('uploadScreen').style.display='none';
       document.getElementById('dashboard').style.display='block';
-      document.getElementById('changeBtnWrap').style.display='flex';
+      document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
       document.getElementById('clearSaveBtn').style.display='flex';
@@ -3924,6 +3925,29 @@ function autoResolveDuplicates(pairs){
   return remaining;
 }
 
+function runDuplicateCheckNow(){
+  // Scan every month (not just the selected one) for fuzzy-duplicate resources,
+  // auto-resolving any pair where one side has a valid/submitted status.
+  const seenPairKeys=new Set();
+  let remaining=[];
+  allMonths.forEach(m=>{
+    const pairs0 = findFuzzyDuplicates(employeesByMonth[m]||[]);
+    const stillPending = autoResolveDuplicates(pairs0);
+    stillPending.forEach(p=>{
+      const key=[p.emp1.code,p.emp2.code].sort().join('|');
+      if(!seenPairKeys.has(key)){ seenPairKeys.add(key); remaining.push(p); }
+    });
+  });
+  if(remaining.length>0){
+    initDashboard();
+    showDupReview(remaining);
+  } else {
+    initDashboard();
+    autoSave();
+    alert('✅ No unresolved duplicates found. Any pairs with one Posted/Submitted record were auto-resolved.');
+  }
+}
+
 // Exact duplicate finder (for renderBillTable highlight - same name exact)
 function findDuplicates(emps){
   const nameMap={};
@@ -4069,6 +4093,7 @@ function proceedToDashboard(){
 
   document.getElementById('dupReviewScreen').style.display='none';
   initDashboard();
+  autoSave();
 }
 
 // ── Manage Action Options ────────────────────────────────────────────────────
