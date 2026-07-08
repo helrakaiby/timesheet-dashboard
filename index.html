@@ -1351,6 +1351,13 @@ function updateTeamDataOnly(file){
 }
 
 function rebuildTimesheetOnly(raw){
+  // Snapshot the CURRENT practice for every known employee code, before we rebuild.
+  // This lets us preserve manually-set/corrected practices across a timesheet refresh.
+  const existingPracticeByCode = {};
+  Object.values(employeesByMonth||{}).forEach(emps=>{
+    (emps||[]).forEach(e=>{ if(e.code && e.practice) existingPracticeByCode[e.code]=e.practice; });
+  });
+
   // Rebuild employeesByMonth from new timesheet data using existing mlMap
   const byMonth={};
   raw.forEach(r=>{
@@ -1363,7 +1370,10 @@ function rebuildTimesheetOnly(raw){
     // Use existing mlMap to get cost and practice
     const mlEntry=findMlEntry(code, findKey(r,'Employee Name'));
     const cost=mlEntry?getCost(mlEntry):0;
-    const practice=mlEntry?normP(mlEntry.practice):normP(findKey(r,'Practice'));
+    // If we already know this employee's practice (from a prior upload / manual edit), keep it as-is.
+    // Otherwise fall back to Master List, then to the Timesheet file's own Practice column.
+    const practice=existingPracticeByCode[code]
+      ||(mlEntry?normP(mlEntry.practice):normP(findKey(r,'Practice')));
     if(!byMonth[month][code]) byMonth[month][code]={
       code, month,
       name:findKey(r,'Employee Name'),
