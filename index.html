@@ -813,15 +813,15 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
       </div></div>
     </div>
 
-    <!-- Not Entered Timesheet -->
+    <!-- Non Compliant -->
     <div class="missing-section">
       <div class="missing-header">
-        <span class="missing-title">Not Entered Timesheet</span>
+        <span class="missing-title">Non Compliant</span>
         <span class="missing-badge red" id="notEnteredCount">0</span>
-        <span style="font-size:11px;color:var(--text2)">Resources with status NOT-ENTERED</span>
+        <span style="font-size:11px;color:var(--text2)">Resources with status NOT-ENTERED or NOT-SUBMITTED</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
           <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="missNotEnteredSearch" placeholder="Search…" oninput="searchMissNotEntered=this.value;renderMissingTable()"></div>
-          <button class="export-btn" onclick="exportMissingTable('notEnteredBody','Not-Entered')">⬇ Export</button>
+          <button class="export-btn" onclick="exportMissingTable('notEnteredBody','Non-Compliant')">⬇ Export</button>
         </div>
       </div>
       <div class="tcard"><div class="tscroll">
@@ -1988,15 +1988,15 @@ function renderMissingTable(){
     :notInML.map((e,i)=>`<tr><td style="color:var(--text2)">${i+1}</td><td style="font-family:monospace;font-size:10px">${e.code}</td><td>${e.name}</td><td style="color:var(--text2)">${e.practice}</td><td>${e.country}</td></tr>`).join('');
   document.getElementById('missingBadge').textContent=(notInTS.length+notInML.length)||'';
 
-  // Not Entered Timesheet
+  // Non Compliant (Not Entered + Not Submitted)
   const mneq=(document.getElementById('missNotEnteredSearch')?.value||'').toLowerCase();
   const notEntered = currentEmps().filter(e=>{
     const s = (e.status||'').toUpperCase().replace(/[\s_]/g,'-');
-    return s==='NOT-ENTERED' && (!mneq||(e.name.toLowerCase().includes(mneq)||e.code.toLowerCase().includes(mneq)));
+    return (s==='NOT-ENTERED'||s==='NOT-SUBMITTED') && (!mneq||(e.name.toLowerCase().includes(mneq)||e.code.toLowerCase().includes(mneq)));
   });
   document.getElementById('notEnteredCount').textContent = notEntered.length;
   document.getElementById('notEnteredBody').innerHTML = notEntered.length===0
-    ? '<tr><td colspan="9" class="empty">No resources with NOT-ENTERED status ✅</td></tr>'
+    ? '<tr><td colspan="9" class="empty">No non-compliant resources ✅</td></tr>'
     : notEntered.map((e,i)=>{
         const{tot}=calc(e);
         return`<tr>
@@ -3011,8 +3011,21 @@ function editPractice(span, code){
   sel.focus();
   const commit=()=>{
     const newPractice=sel.value;
-    emp.practice=newPractice;
-    markEdited(code,'practice',newPractice);
+    // Apply the practice change to this employee's record in EVERY month, not just the current one
+    allMonths.forEach(m=>{
+      const empInMonth = (employeesByMonth[m]||[]).find(x=>x.code===code);
+      if(empInMonth){
+        empInMonth.practice = newPractice;
+        const monthSelBefore = selectedMonth;
+        selectedMonth = m; // markEdited/isEdited use selectedMonth internally
+        markEdited(code,'practice',newPractice);
+        selectedMonth = monthSelBefore;
+      }
+    });
+    // Also keep master list in sync so future months/uploads reflect the correction
+    if(mlMap[code]) mlMap[code].practice = newPractice;
+    const mlEntry = masterList.find(m=>m.code===code);
+    if(mlEntry) mlEntry.practice = newPractice;
     const newSpan=document.createElement('span');
     newSpan.className='practice-cell';
     newSpan.title='Click to edit practice';
