@@ -1421,9 +1421,12 @@ function rebuildTimesheetOnly(raw){
   if(monthTabsEl) monthTabsEl.style.display=allMonths.length>0?'':'none';
   if(filterSepEl) filterSepEl.style.display=allMonths.length>0?'':'none';
   const fuzzyPairs0=findFuzzyDuplicates(employeesByMonth[selectedMonth]||[]);
-  const fuzzyPairs=autoResolveDuplicates(fuzzyPairs0);
-  if(fuzzyPairs.length>0){ showDupReview(fuzzyPairs); return; }
+  const _dupLog1=[];
+  const fuzzyPairs=autoResolveDuplicates(fuzzyPairs0,_dupLog1);
+  lastDupResolveLog=_dupLog1;
+  if(fuzzyPairs.length>0){ initDashboard(); if(_dupLog1.length>0) showDupResolveReport(_dupLog1,null); showDupReview(fuzzyPairs); return; }
   initDashboard();
+  if(_dupLog1.length>0) showDupResolveReport(_dupLog1, null);
 }
 
 function parseFile(file){
@@ -1620,13 +1623,18 @@ function buildData(raw,ml){
   // Check for fuzzy duplicates before showing dashboard
   const currentMonthEmps = employeesByMonth[selectedMonth]||[];
   const fuzzyPairs0 = findFuzzyDuplicates(currentMonthEmps);
-  const fuzzyPairs = autoResolveDuplicates(fuzzyPairs0);
+  const _dupLog2=[];
+  const fuzzyPairs = autoResolveDuplicates(fuzzyPairs0,_dupLog2);
+  lastDupResolveLog=_dupLog2;
   if(fuzzyPairs.length>0){
+    initDashboard();
+    if(_dupLog2.length>0) showDupResolveReport(_dupLog2,null);
     showDupReview(fuzzyPairs);
     return;
   }
 
   initDashboard();
+  if(_dupLog2.length>0) showDupResolveReport(_dupLog2, null);
 }
 
 function initDashboard(){
@@ -3908,13 +3916,19 @@ function isValidStatus(s){
 // offshore/onshore move), automatically keep whichever record has a valid/submitted status
 // and drop the other WITHOUT asking the user — but only when exactly one side qualifies.
 // Pairs where both are valid, or both are still Not-Entered/Not-Submitted, are left for manual review.
-function autoResolveDuplicates(pairs){
+function autoResolveDuplicates(pairs, resolvedLog){
   const codesToDrop=new Set();
   const remaining=[];
   pairs.forEach(p=>{
     const v1=isValidStatus(p.emp1.status), v2=isValidStatus(p.emp2.status);
-    if(v1 && !v2){ codesToDrop.add(p.emp2.code); }
-    else if(v2 && !v1){ codesToDrop.add(p.emp1.code); }
+    if(v1 && !v2){
+      codesToDrop.add(p.emp2.code);
+      if(resolvedLog) resolvedLog.push({name:p.emp1.name, keptCode:p.emp1.code, keptStatus:p.emp1.status, droppedCode:p.emp2.code, droppedStatus:p.emp2.status, month:p.emp1.month});
+    }
+    else if(v2 && !v1){
+      codesToDrop.add(p.emp1.code);
+      if(resolvedLog) resolvedLog.push({name:p.emp2.name, keptCode:p.emp2.code, keptStatus:p.emp2.status, droppedCode:p.emp1.code, droppedStatus:p.emp1.status, month:p.emp2.month});
+    }
     else { remaining.push(p); } // both valid, or both still pending — needs manual review
   });
   if(codesToDrop.size>0){
@@ -3925,26 +3939,61 @@ function autoResolveDuplicates(pairs){
   return remaining;
 }
 
+let lastDupResolveLog=[];
+
 function runDuplicateCheckNow(){
   // Scan every month (not just the selected one) for fuzzy-duplicate resources,
   // auto-resolving any pair where one side has a valid/submitted status.
   const seenPairKeys=new Set();
   let remaining=[];
+  const resolvedLog=[];
   allMonths.forEach(m=>{
     const pairs0 = findFuzzyDuplicates(employeesByMonth[m]||[]);
-    const stillPending = autoResolveDuplicates(pairs0);
+    const stillPending = autoResolveDuplicates(pairs0, resolvedLog);
     stillPending.forEach(p=>{
       const key=[p.emp1.code,p.emp2.code].sort().join('|');
       if(!seenPairKeys.has(key)){ seenPairKeys.add(key); remaining.push(p); }
     });
   });
-  if(remaining.length>0){
-    initDashboard();
-    showDupReview(remaining);
-  } else {
-    initDashboard();
-    autoSave();
-    alert('✅ No unresolved duplicates found. Any pairs with one Posted/Submitted record were auto-resolved.');
+  lastDupResolveLog=resolvedLog;
+  initDashboard();
+  autoSave();
+  showDupResolveReport(resolvedLog, remaining);
+}
+
+function showDupResolveReport(resolvedLog, remaining){
+  const rows = resolvedLog.map(r=>`<tr>
+      <td style="padding:6px 8px;border-bottom:0.5px solid var(--border)">${r.month||''}</td>
+      <td style="padding:6px 8px;border-bottom:0.5px solid var(--border);font-weight:500">${r.name}</td>
+      <td style="padding:6px 8px;border-bottom:0.5px solid var(--border);color:var(--green)">✅ Kept ${r.keptCode} <span style="color:var(--text2);font-size:10px">(${r.keptStatus})</span></td>
+      <td style="padding:6px 8px;border-bottom:0.5px solid var(--border);color:var(--red)">✖ Dropped ${r.droppedCode} <span style="color:var(--text2);font-size:10px">(${r.droppedStatus||'blank'})</span></td>
+    </tr>`).join('');
+  const body = resolvedLog.length===0
+    ? '<p style="color:var(--text2);font-size:13px">No duplicates were auto-resolved this time.</p>'
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:var(--text2)">Month</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:var(--text2)">Name</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:var(--text2)">Kept</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:var(--text2)">Dropped</th>
+        </tr></thead><tbody>${rows}</tbody></table>`;
+  const remainingNote = remaining && remaining.length>0
+    ? `<p style="color:var(--amber);font-size:12px;margin-top:10px">⚠️ ${remaining.length} pair(s) still need manual review (both records had the same validity level).</p>`
+    : '';
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML=`<div style="background:var(--bg);border-radius:10px;padding:20px 24px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto">
+      <h3 style="margin:0 0 12px 0;font-size:16px">🔍 Duplicate Check Report</h3>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">${resolvedLog.length} duplicate pair(s) auto-resolved (kept the Posted/Submitted record).</p>
+      ${body}
+      ${remainingNote}
+      <div style="text-align:right;margin-top:16px">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="border:none;background:var(--blue);color:#fff;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:inherit">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  if(remaining && remaining.length>0){
+    modal.querySelector('button').addEventListener('click',()=>{ showDupReview(remaining); }, {once:true});
   }
 }
 
