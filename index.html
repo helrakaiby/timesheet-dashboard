@@ -2519,6 +2519,10 @@ function saveState(){
       removedByMonth: {},
       addedCodesByMonth: {},
       colVisibility: {},
+      wfActions: {...wfActions},
+      wfActionOptions: [...wfActionOptions],
+      editedFieldsByMonth: JSON.parse(JSON.stringify(editedFieldsByMonth||{})),
+      originalDataByMonth: JSON.parse(JSON.stringify(originalDataByMonth||{})),
     };
     // Save employees (convert to plain objects)
     allMonths.forEach(m=>{
