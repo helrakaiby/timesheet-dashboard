@@ -1964,7 +1964,7 @@ function renderMissingTable(){
   // 2. Exclude if joined AFTER the selected month (new hire not yet active)
   // 3. If status empty → treat as Active; if join date empty → treat as always active
   const curMonth = selectedMonth||allMonths[0]||'';
-  const notInTS=masterList.filter(m=>{
+  const notInTS=filtEmps(masterList,sharedFilter).filter(m=>{
     const foundInTS = tsCodes.has(m.code) || (m.oldId && tsCodes.has(m.oldId.trim().toUpperCase()));
     const matchSearch = !m1q||(m.name.toLowerCase().includes(m1q)||m.code.toLowerCase().includes(m1q));
     const status = (m.mlStatus||'').toLowerCase().trim().replace(/\s+/g,' ');
@@ -1986,7 +1986,7 @@ function renderMissingTable(){
         </tr>`;
       }).join('');
   const m2q=(document.getElementById('miss2Search')?.value||'').toLowerCase();
-  const notInML=currentEmps().filter(e=>{
+  const notInML=filtEmps(currentEmps(),sharedFilter).filter(e=>{
     // Not in ML if findMlEntry returns null (checks code, old ID, and name)
     const found = findMlEntry(e.code, e.name);
     const matchSearch = !m2q||(e.name.toLowerCase().includes(m2q)||e.code.toLowerCase().includes(m2q));
@@ -2000,7 +2000,7 @@ function renderMissingTable(){
 
   // Non Compliant (Not Entered + Not Submitted)
   const mneq=(document.getElementById('missNotEnteredSearch')?.value||'').toLowerCase();
-  const notEntered = currentEmps().filter(e=>{
+  const notEntered = filtEmps(currentEmps(),sharedFilter).filter(e=>{
     const s = (e.status||'').toUpperCase().replace(/[\s_]/g,'-');
     return (s==='NOT-ENTERED'||s==='NOT-SUBMITTED') && (!mneq||(e.name.toLowerCase().includes(mneq)||e.code.toLowerCase().includes(mneq)));
   });
@@ -2025,7 +2025,7 @@ function renderMissingTable(){
   // Removed from Billability Summary
   const month = selectedMonth||allMonths[0];
   const mrq=(document.getElementById('missRemovedSearch')?.value||'').toLowerCase();
-  const allRemoved = removedByMonth[month]||[];
+  const allRemoved = filtEmps(removedByMonth[month]||[],sharedFilter);
   const removed = mrq ? allRemoved.filter(e=>e.name.toLowerCase().includes(mrq)||e.code.toLowerCase().includes(mrq)) : allRemoved;
   document.getElementById('removedCount').textContent=removed.length;
   document.getElementById('removedBody').innerHTML=removed.length===0
