@@ -4648,7 +4648,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   // Try loading from Supabase first
   document.getElementById('uploadScreen').style.display='none';
   // Show loading indicator
-  document.body.innerHTML+='<div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;font-size:16px;color:var(--text2)">⏳ Loading data...</div>';
+  document.body.insertAdjacentHTML('beforeend', '<div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;font-size:16px;color:var(--text2)">⏳ Loading data...</div>');
   
   let restoredFromSupabase = false;
   try{
@@ -4667,7 +4667,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   if(localStorage.getItem(SAVE_KEY)){
     document.getElementById('clearSaveBtn').style.display='inline-flex';
   }
-  const restored = restoredFromSupabase || loadState();
+  const restored = loadState();
   if(!restored){
     document.getElementById('uploadScreen').style.display='block';
   }
