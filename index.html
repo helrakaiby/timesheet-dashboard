@@ -1391,16 +1391,20 @@ function rebuildTimesheetOnly(raw){
       byMonth[month][code].activityNames.add(findKey(r,'Activity Name'));
     }
   });
-  employeesByMonth={};
-  allMonths=Object.keys(byMonth).sort();
-  allMonths.forEach(m=>{
+  const updatedMonths = Object.keys(byMonth).sort();
+
+  // Merge: replace ONLY the months present in this upload. Any month already in
+  // employeesByMonth that isn't in this file (e.g. July/August when uploading just June)
+  // is left completely untouched.
+  updatedMonths.forEach(m=>{
     employeesByMonth[m]=Object.values(byMonth[m])
       .map(e=>({...e,activityNames:[...(e.activityNames||new Set())]}))
       .sort((a,b)=>a.practice.localeCompare(b.practice)||a.name.localeCompare(b.name));
   });
-  // Snapshot originals
-  editedFieldsByMonth={}; originalDataByMonth={};
-  allMonths.forEach(m=>{
+  allMonths = [...new Set([...(allMonths||[]), ...updatedMonths])].sort();
+
+  // Snapshot originals — only for the months we just updated; leave other months' edit history intact
+  updatedMonths.forEach(m=>{
     originalDataByMonth[m]={};
     (employeesByMonth[m]||[]).forEach(e=>{
       originalDataByMonth[m][e.code]={
@@ -1409,9 +1413,11 @@ function rebuildTimesheetOnly(raw){
         status:e.status, cost:e.cost
       };
     });
+    editedFieldsByMonth[m]={};
+    removedByMonth[m]=[];
+    addedCodesByMonth[m]=new Set();
   });
-  selectedMonth=allMonths[allMonths.length-1]||null;
-  removedByMonth={}; addedCodesByMonth={};
+  selectedMonth = (selectedMonth && allMonths.includes(selectedMonth)) ? selectedMonth : (updatedMonths[updatedMonths.length-1]||allMonths[allMonths.length-1]||null);
   rebuildPractices(); buildSharedDD();
   renderMonthTabs();
   // Always show filter bar (for practice filter); hide month tabs if no timesheet
