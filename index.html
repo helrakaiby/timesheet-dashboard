@@ -2536,6 +2536,13 @@ async function saveToSupabase(state){
       }));
       await sbFetch('employees?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
     }
+    // Remove any months that are no longer part of the current dataset (e.g. a Timesheet
+    // replace that dropped a month) so a refresh doesn't silently bring old months back.
+    if(state.allMonths && state.allMonths.length){
+      const monthList = state.allMonths.map(m=>`"${m}"`).join(',');
+      await sbFetch(`employees?month=not.in.(${monthList})`, 'DELETE');
+      await sbFetch(`removed_resources?month=not.in.(${monthList})`, 'DELETE');
+    }
     // wf_actions -> one row per tagged resource
     const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
     if(waRows.length) await sbFetch('wf_actions?on_conflict=code', 'POST', waRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
