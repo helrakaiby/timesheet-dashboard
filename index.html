@@ -219,7 +219,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
   <div class="hdr-right">
     <span class="file-name" id="fileNameLabel"></span>
     <label class="file-btn" id="changeBtnWrap" style="display:none">
-      📂 Change Timesheet
+      📂 Update Timesheet
       <input type="file" id="fileInputHdr" accept=".xlsx,.xls" style="display:none">
     </label>
     <label class="file-btn" id="teamDataBtnWrap" style="display:none;background:var(--green-bg);color:var(--green);border-color:var(--green)">
@@ -2556,7 +2556,8 @@ async function saveToSupabase(state){
     await sbFetch('app_state?on_conflict=id', 'POST', [{
       id:1, selected_month:state.selectedMonth||null,
       col_visibility:state.colVisibility||{}, edited_fields_by_month:state.editedFieldsByMonth||{},
-      original_data_by_month:state.originalDataByMonth||{}, added_codes_by_month:state.addedCodesByMonth||{}
+      original_data_by_month:state.originalDataByMonth||{}, added_codes_by_month:state.addedCodesByMonth||{},
+      shared_filter: state.sharedFilter || ['__all__']
     }], {'Prefer':'resolution=merge-duplicates,return=minimal'});
     console.log('✅ Saved to Supabase (structured tables)');
   } catch(e){ console.warn('Supabase save failed:', e); }
@@ -2629,6 +2630,7 @@ async function loadFromSupabase(){
       wfActionOptions: (waOptRows||[]).map(r=>r.label),
       editedFieldsByMonth: appState.edited_fields_by_month || {},
       originalDataByMonth: appState.original_data_by_month || {},
+      sharedFilter: appState.shared_filter || ['__all__'],
     };
   } catch(e){ console.warn('Supabase load failed:', e); }
   return null;
@@ -2652,6 +2654,7 @@ function saveState(){
       wfActionOptions: [...wfActionOptions],
       editedFieldsByMonth: JSON.parse(JSON.stringify(editedFieldsByMonth||{})),
       originalDataByMonth: JSON.parse(JSON.stringify(originalDataByMonth||{})),
+      sharedFilter: [...sharedFilter],
     };
     // Save employees (convert to plain objects)
     allMonths.forEach(m=>{
@@ -2709,7 +2712,7 @@ function loadState(){
       addedCodesByMonth[m] = new Set(state.addedCodesByMonth[m]||[]);
     });
 
-    sharedFilter  = new Set(['__all__']);
+    sharedFilter  = new Set((state.sharedFilter && state.sharedFilter.length) ? state.sharedFilter : ['__all__']);
     billFilter    = new Set(['__all__']);
     practFilter   = new Set(['__all__']);
     compareFilter = new Set(['__all__']);
