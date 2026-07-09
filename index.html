@@ -232,7 +232,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
       ⬇ Load session
       <input type="file" id="sessionFileInput" accept=".json" style="display:none">
     </label>
-    <button class="file-btn" id="clearSaveBtn" style="display:none;color:var(--red);border-color:var(--red)" onclick="clearSavedData()" title="Clear all saved data and reset dashboard">🗑 Clear data</button>
+
     <span id="savedIndicator" style="display:none;font-size:11px;color:var(--green)">✓ Saved</span>
   </div>
 </div>
@@ -2722,7 +2722,7 @@ function loadState(){
     document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
-    document.getElementById('clearSaveBtn').style.display='flex';
+    
 
     initCostMonthDropdowns();
     initWfMonthDropdowns();
@@ -2739,12 +2739,6 @@ function loadState(){
     },150);
     return true;
   } catch(e){ console.warn('Load failed:', e); return false; }
-}
-
-function clearSavedData(){
-  if(!confirm('Clear all saved data and reset the dashboard?')) return;
-  localStorage.removeItem(SAVE_KEY);
-  location.reload();
 }
 
 // Auto-save whenever state changes
@@ -2882,7 +2876,7 @@ function loadSessionFile(file){
       document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
-      document.getElementById('clearSaveBtn').style.display='flex';
+      
 
       updateKPIs();renderBillTable();renderPracticeTable();renderBelowTable();renderMissingTable();
       setTimeout(()=>{
@@ -4900,7 +4894,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
 
   // Always show clear button if saved data exists
   if(localStorage.getItem(SAVE_KEY)){
-    document.getElementById('clearSaveBtn').style.display='inline-flex';
+  // (Clear data button removed)
   }
   const restored = loadState();
   if(!restored){
