@@ -2593,7 +2593,7 @@ async function loadFromSupabase(){
         code:r.code, name:r.name||'', month:r.month, practice:r.practice||'', country:r.country||'',
         cost:Number(r.cost)||0, status:r.status||'', fromMaster:false,
         billableMD:Number(r.billable_md)||0, nonBillableMD:Number(r.non_billable_md)||0, intProjMD:Number(r.int_proj_md)||0,
-        activityNames:new Set()
+        activityNames:[]
       });
     });
     const allMonthsOut = [...monthSet].sort();
