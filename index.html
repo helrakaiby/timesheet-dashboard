@@ -2493,14 +2493,15 @@ function initAllResizers(){
 const SUPABASE_URL = 'https://ghirokwzmvwjlgzonenz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_0XpYBDVacPzlHKUuV0UQTQ_tgZ16DES';
 
-async function sbFetch(endpoint, method='GET', body=null){
+async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
   const opts = {
     method,
     headers: {
       'apikey': SUPABASE_KEY,
       'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': method==='POST'?'return=representation':''
+      'Prefer': method==='POST'?'return=representation':'',
+      ...extraHeaders
     }
   };
   if(body) opts.body = JSON.stringify(body);
@@ -2510,18 +2511,125 @@ async function sbFetch(endpoint, method='GET', body=null){
   return text ? JSON.parse(text) : null;
 }
 
-async function saveToSupabase(data){
+async function saveToSupabase(state){
   try{
-    await sbFetch('sessions?session_key=eq.main', 'DELETE');
-    await sbFetch('sessions', 'POST', {session_key:'main', data:data, updated_at:new Date().toISOString()});
-    console.log('✅ Saved to Supabase');
+    // master_list -> upsert every resource's profile row
+    if(state.masterList && state.masterList.length){
+      const rows = state.masterList.map(m=>({
+        code:m.code, name:m.name||'', old_id:m.oldId||'', practice:m.practice||'', shore:m.shore||'',
+        cost:m.cost||0, onshore:m.onshore||0, offshore:m.offshore||0, seniority:m.seniority||'',
+        skills:m.skills||'', ml_status:m.mlStatus||'Active', joined_date:m.joinedDate||'',
+        pas_profile:m.pasProfile||'', iqama_date:m.iqamaDate||'', grade:m.grade||'', fte_cw:m.fteCw||'',
+        location:m.location||'', yoe:m.yoe||'', direct_manager:m.directManager||'', iqama_class:m.iqamaClass||'',
+        resigned_date:m.resignedDate||''
+      }));
+      await sbFetch('master_list?on_conflict=code', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }
+    // employees -> upsert one row per employee per month
+    for(const m of (state.allMonths||[])){
+      const emps = (state.employeesByMonth && state.employeesByMonth[m]) || [];
+      if(!emps.length) continue;
+      const rows = emps.map(e=>({
+        code:e.code, name:e.name||'', practice:e.practice||'', country:e.country||'', cost:e.cost||0,
+        month:m, billable_md:e.billableMD||0, non_billable_md:e.nonBillableMD||0, int_proj_md:e.intProjMD||0,
+        status:e.status||''
+      }));
+      await sbFetch('employees?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }
+    // wf_actions -> one row per tagged resource
+    const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
+    if(waRows.length) await sbFetch('wf_actions?on_conflict=code', 'POST', waRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    // wf_action_options -> keep the dropdown list in sync too
+    if(state.wfActionOptions && state.wfActionOptions.length){
+      const optRows = state.wfActionOptions.map((label,i)=>({label, sort_order:i}));
+      await sbFetch('wf_action_options?on_conflict=label', 'POST', optRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }
+    // pas_roles -> onshore/offshore rate per role, from the Team Data workbook's PAS Roles sheet
+    const prRows = Object.entries(pasRoles||{}).map(([role,r])=>({masked_role:role, onshore:r.onshore||0, offshore:r.offshore||0}));
+    if(prRows.length) await sbFetch('pas_roles?on_conflict=masked_role', 'POST', prRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    // removed_resources -> per month
+    for(const m of Object.keys(state.removedByMonth||{})){
+      const rows=(state.removedByMonth[m]||[]).map(e=>({code:e.code, name:e.name||'', practice:e.practice||'', month:m, remove_action:e.removeAction||null}));
+      if(rows.length) await sbFetch('removed_resources?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }
+    // app_state -> the small leftover bits that aren't really "resource data"
+    await sbFetch('app_state?on_conflict=id', 'POST', [{
+      id:1, selected_month:state.selectedMonth||null,
+      col_visibility:state.colVisibility||{}, edited_fields_by_month:state.editedFieldsByMonth||{},
+      original_data_by_month:state.originalDataByMonth||{}, added_codes_by_month:state.addedCodesByMonth||{}
+    }], {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    console.log('✅ Saved to Supabase (structured tables)');
   } catch(e){ console.warn('Supabase save failed:', e); }
 }
 
 async function loadFromSupabase(){
   try{
-    const rows = await sbFetch('sessions?session_key=eq.main&select=data');
-    if(rows && rows.length>0) return rows[0].data;
+    const [mlRows, empRows, waRows, waOptRows, prRows, appRows, remRows] = await Promise.all([
+      sbFetch('master_list?select=*'),
+      sbFetch('employees?select=*'),
+      sbFetch('wf_actions?select=*'),
+      sbFetch('wf_action_options?select=*&order=sort_order'),
+      sbFetch('pas_roles?select=*'),
+      sbFetch('app_state?id=eq.1&select=*'),
+      sbFetch('removed_resources?select=*')
+    ]);
+    if(!mlRows || mlRows.length===0) return null; // nothing seeded yet — show upload screen
+
+    const masterListOut = mlRows.map(r=>({
+      code:r.code, name:r.name||'', oldId:r.old_id||'', practice:r.practice||'', shore:r.shore||'',
+      cost:Number(r.cost)||0, onshore:Number(r.onshore)||0, offshore:Number(r.offshore)||0,
+      seniority:r.seniority||'', skills:r.skills||'', mlStatus:r.ml_status||'Active',
+      joinedDate:r.joined_date||'', pasProfile:r.pas_profile||'', iqamaDate:r.iqama_date||'',
+      grade:r.grade||'', fteCw:r.fte_cw||'', location:r.location||'', yoe:r.yoe||'',
+      directManager:r.direct_manager||'', iqamaClass:r.iqama_class||'', resignedDate:r.resigned_date||''
+    }));
+
+    const employeesByMonthOut = {};
+    const monthSet = new Set();
+    (empRows||[]).forEach(r=>{
+      monthSet.add(r.month);
+      if(!employeesByMonthOut[r.month]) employeesByMonthOut[r.month]=[];
+      employeesByMonthOut[r.month].push({
+        code:r.code, name:r.name||'', month:r.month, practice:r.practice||'', country:r.country||'',
+        cost:Number(r.cost)||0, status:r.status||'', fromMaster:false,
+        billableMD:Number(r.billable_md)||0, nonBillableMD:Number(r.non_billable_md)||0, intProjMD:Number(r.int_proj_md)||0,
+        activityNames:new Set()
+      });
+    });
+    const allMonthsOut = [...monthSet].sort();
+
+    const wfActionsOut = {};
+    (waRows||[]).forEach(r=>{ wfActionsOut[r.code]=r.action; });
+
+    pasRoles = {};
+    (prRows||[]).forEach(r=>{ pasRoles[r.masked_role] = {onshore:Number(r.onshore)||0, offshore:Number(r.offshore)||0}; });
+
+    const removedByMonthOut = {};
+    (remRows||[]).forEach(r=>{
+      if(!removedByMonthOut[r.month]) removedByMonthOut[r.month]=[];
+      removedByMonthOut[r.month].push({code:r.code, name:r.name||'', practice:r.practice||'', removeAction:r.remove_action||null});
+    });
+
+    const appState = (appRows && appRows[0]) || {};
+
+    const practiceSet = new Set();
+    masterListOut.forEach(m=>{ if(m.practice) practiceSet.add(m.practice); });
+    Object.values(employeesByMonthOut).forEach(list=>list.forEach(e=>{ if(e.practice) practiceSet.add(e.practice); }));
+
+    return {
+      masterList: masterListOut,
+      employeesByMonth: employeesByMonthOut,
+      allMonths: allMonthsOut,
+      allPractices: [...practiceSet].sort(),
+      selectedMonth: appState.selected_month || allMonthsOut[allMonthsOut.length-1],
+      removedByMonth: removedByMonthOut,
+      addedCodesByMonth: appState.added_codes_by_month || {},
+      colVisibility: appState.col_visibility || {},
+      wfActions: wfActionsOut,
+      wfActionOptions: (waOptRows||[]).map(r=>r.label),
+      editedFieldsByMonth: appState.edited_fields_by_month || {},
+      originalDataByMonth: appState.original_data_by_month || {},
+    };
   } catch(e){ console.warn('Supabase load failed:', e); }
   return null;
 }
