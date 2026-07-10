@@ -1692,16 +1692,19 @@ function updateKPIs(){
   document.getElementById('kpiTotalCost').textContent='Total cost: '+fmt(tTC);
   document.getElementById('kpiMonth').textContent=selectedMonth||allMonths.join(' · ');
 
-  // Confirmed billability/utilization — Posted/Approved statuses only
+  // Confirmed billability/utilization — numerator from Posted/Approved only,
+  // but denominator is the FULL resource pool (same as Overall cards) so this
+  // number represents "share of total cost/capacity that's confirmed billable"
+  // and can never exceed the Overall billability/utilization figures.
   const confirmedEmps = emps.filter(e=>{
     const s=(e.status||'').toUpperCase().replace(/[\s_]/g,'-');
     return s==='POSTED'||s==='APPROVED';
   });
-  let cBC=0,cTC=0,cBMD=0,cIPMD=0,cMD=0;
-  confirmedEmps.forEach(e=>{const{bc,tc,tot}=calc(e);cBC+=bc;cTC+=tc;cBMD+=e.billableMD;cIPMD+=e.intProjMD;cMD+=tot;});
-  document.getElementById('kpiConfirmedBill').textContent=cTC>0?pct(cBC/cTC):'—';
-  document.getElementById('kpiConfirmedUtil').textContent=cMD>0?pct((cBMD+cIPMD)/cMD):'—';
-  document.getElementById('kpiConfirmedSub').textContent=`Posted/Approved only • ${confirmedEmps.length} resources`;
+  let cBC=0,cBMD=0,cIPMD=0;
+  confirmedEmps.forEach(e=>{const{bc}=calc(e);cBC+=bc;cBMD+=e.billableMD;cIPMD+=e.intProjMD;});
+  document.getElementById('kpiConfirmedBill').textContent=tTC>0?pct(cBC/tTC):'—';
+  document.getElementById('kpiConfirmedUtil').textContent=tMD>0?pct((cBMD+cIPMD)/tMD):'—';
+  document.getElementById('kpiConfirmedSub').textContent=`Posted/Approved only • ${confirmedEmps.length} of ${emps.length} resources`;
 }
 
 // ── Sort icons ─────────────────────────────────────────────────────────────
