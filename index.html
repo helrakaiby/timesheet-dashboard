@@ -1319,6 +1319,24 @@ function updateTeamDataOnly(file){
       }
     }
     const mlData=XLSX.utils.sheet_to_json(sheet,{defval:'',range:headerRowIdx});
+
+    // Also read PAS Roles sheet — this was previously only done on the very first upload,
+    // never on "Update Team Data", so pas_roles stayed empty on subsequent updates.
+    const pasSheetName=wb.SheetNames.find(s=>s.toLowerCase().includes('pas role'))||
+                       wb.SheetNames.find(s=>s.toLowerCase().includes('pas'));
+    if(pasSheetName){
+      const pasRows=XLSX.utils.sheet_to_json(wb.Sheets[pasSheetName],{defval:''});
+      pasRoles={};
+      pasRows.forEach(r=>{
+        const role=(r['Masked Role']||r['PAS Role']||r['Role']||'').toString().trim();
+        if(!role)return;
+        pasRoles[role]={
+          onshore:parseFloat(r['Onshore'])||0,
+          offshore:parseFloat(r['Offshore'])||0
+        };
+      });
+      console.log('PAS Roles loaded:', Object.keys(pasRoles).length, 'roles');
+    }
     // Rebuild master list only
     mlMap={};
     mlData.forEach(row=>{
@@ -1685,7 +1703,8 @@ function updateKPIs(){
   const emps = filtEmps(currentEmps(), getActiveFilter());
   let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
   emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
-  document.getElementById('kpiResources').textContent=emps.length;
+  const kpiDupPairs = findMasterListDuplicatePairs(emps);
+  document.getElementById('kpiResources').textContent=emps.length - kpiDupPairs.length;
   document.getElementById('kpiBill').textContent=tTC>0?pct(tBC/tTC):'—';
   document.getElementById('kpiUtil').textContent=tMD>0?pct((tBMD+tIPMD)/tMD):'—';
   document.getElementById('kpiCost').textContent=fmt(tBC);
@@ -1730,22 +1749,33 @@ function renderBillTable(){
   }
   document.getElementById('billCount').textContent=`${emps.length} resources`;
 
+  const dupPairs = findMasterListDuplicatePairs(emps);
+  const dupPartner = {}; // code -> partner code
+  dupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
+  const dupUniqueCount = emps.length - dupPairs.length; // each pair counts as 1, not 2
+  document.getElementById('billCount').textContent = dupPairs.length>0
+    ? `${emps.length} resources (${dupUniqueCount} unique, ${dupPairs.length} duplicate pair${dupPairs.length>1?'s':''})`
+    : `${emps.length} resources`;
+
   document.getElementById('billBody').innerHTML=emps.length===0
     ?'<tr><td colspan="16" class="empty">No resources found</td></tr>'
     :emps.map((emp,i)=>{
-        const{dr,tot,bc,tc,bpct,upct}=calc(emp);
+        const isDup = !!dupPartner[emp.code];
+        const overrideCost = isDup ? getDuplicateOverrideCost(emp) : null;
+        const{dr,tot,bc,tc,bpct,upct,costUsed}=calcWithCost(emp, overrideCost);
         const idx=currentEmps().indexOf(emp);
+        const dupBadge = isDup ? `<span title="Duplicate resource — linked to ${dupPartner[emp.code]} via ${overrideCost!=null?'PAS rate':'Master List'}" style="font-size:9px;background:var(--amber-bg);color:var(--amber);padding:1px 5px;border-radius:4px;margin-left:5px">🔗 dup</span>` : '';
         return`<tr>
           <td data-col="num" style="color:var(--text2)">${i+1}</td>
           <td data-col="code" style="font-family:monospace;font-size:10px">${emp.code}</td>
-          <td data-col="name" class="name-cell" style="overflow:hidden;text-overflow:ellipsis">${emp.name}${emp.fromMaster?' <span style="font-size:9px;color:var(--blue)">+added</span>':''}</td>
+          <td data-col="name" class="name-cell" style="overflow:hidden;text-overflow:ellipsis">${emp.name}${emp.fromMaster?' <span style="font-size:9px;color:var(--blue)">+added</span>':''}${dupBadge}</td>
           <td data-col="practice" style="overflow:hidden;text-overflow:ellipsis;max-width:160px;${practicesMismatch(emp)?'background:var(--amber-bg);':''}">
             <span class="practice-cell" onclick="editPractice(this,'${emp.code}')" title="${practicesMismatch(emp)?(getMlPractice(emp)?'⚠️ Differs from Master List: '+getMlPractice(emp):'⚠️ Practice not found in Master List — click to correct'):'Click to edit practice'}">
               ${practicesMismatch(emp)?'<span style="font-size:10px;margin-right:3px">⚠️</span>':''}${emp.practice}${isEdited(emp.code,'practice')?editedTag:''}
             </span>
           </td>
           <td data-col="country">${emp.country}</td>
-          <td data-col="cost"><span class="practice-cell" onclick="editMonthlyCost(this,'${emp.code}')" title="Click to edit monthly cost">${fmt(emp.cost)}${isEdited(emp.code,'cost')?editedTag:''}</span></td>
+          <td data-col="cost"><span class="practice-cell" onclick="editMonthlyCost(this,'${emp.code}')" title="${isDup&&overrideCost!=null?'Duplicate resource: using '+(emp.code.toUpperCase().startsWith('E')?'onshore':'offshore')+' PAS rate':'Click to edit monthly cost'}">${fmt(costUsed)}${isDup&&overrideCost!=null?' <span style="font-size:9px;color:var(--amber)">('+(emp.code.toUpperCase().startsWith('E')?'onshore':'offshore')+')</span>':''}${isEdited(emp.code,'cost')?editedTag:''}</span></td>
           <td data-col="dailyrate" style="color:var(--text2)">${fmt(dr,2)}</td>
           <td data-col="billmd"><input class="editable" type="number" min="0" step="0.5" value="${emp.billableMD.toFixed(1)}" data-idx="${idx}" data-field="billableMD" data-code="${emp.code}">${isEdited(emp.code,'billableMD')?editedTag:''}</td>
           <td data-col="nonbillmd"><input class="editable" type="number" min="0" step="0.5" value="${emp.nonBillableMD.toFixed(1)}" data-idx="${idx}" data-field="nonBillableMD" data-code="${emp.code}">${isEdited(emp.code,'nonBillableMD')?editedTag:''}</td>
@@ -1764,7 +1794,11 @@ function renderBillTable(){
 
   // Total footer
   let tBMD=0,tNBMD=0,tIPMD=0,tTMD=0,tBC=0,tTC=0;
-  emps.forEach(e=>{const{tot,bc,tc}=calc(e);tBMD+=e.billableMD;tNBMD+=e.nonBillableMD;tIPMD+=e.intProjMD;tTMD+=tot;tBC+=bc;tTC+=tc;});
+  emps.forEach(e=>{
+    const overrideCost = dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+    const{tot,bc,tc}=calcWithCost(e, overrideCost);
+    tBMD+=e.billableMD;tNBMD+=e.nonBillableMD;tIPMD+=e.intProjMD;tTMD+=tot;tBC+=bc;tTC+=tc;
+  });
   const tBpct=tTC>0?tBC/tTC:0, tUpct=tTMD>0?(tBMD+tIPMD)/tTMD:0;
   updateBillFooter();
 
@@ -4046,6 +4080,50 @@ function findFuzzyDuplicates(emps){
     }
   }
   return pairs;
+}
+
+// Pair up duplicate resources within a single month's list. PRIMARY method: Master List's
+// old_id/Employee ID link (authoritative — e.g. E3682's old_id = Q2052). FALLBACK: fuzzy name
+// similarity (>=95%), only for anyone the primary method didn't catch.
+function findMasterListDuplicatePairs(emps){
+  const codeSet = new Set(emps.map(e=>e.code));
+  const paired = new Set();
+  const pairs = [];
+  emps.forEach(e=>{
+    if(paired.has(e.code)) return;
+    const mlEntry = mlMap[e.code];
+    if(mlEntry && mlEntry.oldId && mlEntry.oldId!==e.code && codeSet.has(mlEntry.oldId)){
+      const partner = emps.find(x=>x.code===mlEntry.oldId);
+      if(partner && !paired.has(partner.code)){
+        pairs.push({emp1:e, emp2:partner, via:'old_id'});
+        paired.add(e.code); paired.add(partner.code);
+      }
+    }
+  });
+  const remaining = emps.filter(e=>!paired.has(e.code));
+  findFuzzyDuplicates(remaining).forEach(p=>{
+    if(!paired.has(p.emp1.code) && !paired.has(p.emp2.code)){
+      pairs.push({emp1:p.emp1, emp2:p.emp2, via:'name'});
+      paired.add(p.emp1.code); paired.add(p.emp2.code);
+    }
+  });
+  return pairs;
+}
+
+// For a resource identified as part of a duplicate pair, get the onshore/offshore rate
+// (via their PAS Profile -> pas_roles table) based on whether their code starts with E or Q.
+function getDuplicateOverrideCost(emp){
+  const mlEntry = findMlEntry(emp.code, emp.name);
+  const rates = mlEntry && mlEntry.pasProfile ? pasRoles[mlEntry.pasProfile] : null;
+  if(!rates) return null; // no PAS Roles data available — caller should fall back to emp.cost
+  return emp.code.toUpperCase().startsWith('E') ? rates.onshore : rates.offshore;
+}
+
+function calcWithCost(emp, overrideCost){
+  const cost = (overrideCost!=null && overrideCost>0) ? overrideCost : emp.cost;
+  const dr=cost*12/210, tot=emp.billableMD+emp.nonBillableMD+emp.intProjMD;
+  const bc=emp.billableMD*dr, tc=tot*dr;
+  return{dr,tot,bc,tc,bpct:tc>0?bc/tc:0,upct:tot>0?(emp.billableMD+emp.intProjMD)/tot:0,costUsed:cost};
 }
 
 // A status counts as "valid/final" if the timesheet was actually entered/submitted —
