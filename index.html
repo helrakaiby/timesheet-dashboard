@@ -2637,10 +2637,19 @@ async function saveToSupabase(state){
     // wf_actions -> one row per tagged resource
     const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
     if(waRows.length) await sbFetch('wf_actions?on_conflict=code', 'POST', waRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    // Remove wf_actions rows for codes no longer tagged locally (e.g. action cleared/removed)
+    const taggedCodes = Object.keys(state.wfActions||{});
+    if(taggedCodes.length){
+      const codeList = taggedCodes.map(c=>`"${c}"`).join(',');
+      await sbFetch(`wf_actions?code=not.in.(${codeList})`, 'DELETE');
+    }
     // wf_action_options -> keep the dropdown list in sync too
     if(state.wfActionOptions && state.wfActionOptions.length){
       const optRows = state.wfActionOptions.map((label,i)=>({label, sort_order:i}));
       await sbFetch('wf_action_options?on_conflict=label', 'POST', optRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+      // Remove any options that were deleted locally — otherwise they silently resurrect on next load
+      const currentLabels = state.wfActionOptions.map(l=>`"${l.replace(/"/g,'\\"')}"`).join(',');
+      await sbFetch(`wf_action_options?label=not.in.(${currentLabels})`, 'DELETE');
     }
     // pas_roles -> onshore/offshore rate per role, from the Team Data workbook's PAS Roles sheet
     const prRows = Object.entries(pasRoles||{}).map(([role,r])=>({masked_role:role, onshore:r.onshore||0, offshore:r.offshore||0}));
