@@ -2767,11 +2767,12 @@ function saveState(){
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   } catch(e){ console.warn('Save failed:', e); }
-  // Also save to Supabase
+  // Also save to Supabase — properly awaited now, so callers know when it's truly safe to refresh
   try{
     const state = JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');
-    if(Object.keys(state).length>0) saveToSupabase(state);
+    if(Object.keys(state).length>0) return saveToSupabase(state);
   } catch(e){ console.warn('Supabase sync failed:', e); }
+  return Promise.resolve();
 }
 
 function loadState(){
@@ -2839,17 +2840,32 @@ function loadState(){
 // Auto-save whenever state changes
 function autoSave(){
   clearTimeout(window._saveDebounce);
-  window._saveDebounce = setTimeout(()=>{
-    saveState();
-    // Show saved indicator briefly
+  window._saveDebounce = setTimeout(async ()=>{
+    window._savePending = true;
     const ind = document.getElementById('savedIndicator');
-    if(ind){
-      ind.style.display='inline';
-      clearTimeout(window._indTimer);
-      window._indTimer = setTimeout(()=>{ind.style.display='none';},2000);
+    if(ind){ ind.textContent='⏳ Saving...'; ind.style.display='inline'; }
+    try{
+      await saveState();
+    } finally {
+      window._savePending = false;
+      if(ind){
+        ind.textContent='✅ Saved';
+        clearTimeout(window._indTimer);
+        window._indTimer = setTimeout(()=>{ind.style.display='none';},2000);
+      }
     }
   }, 500);
 }
+
+// Warn if the user tries to leave/refresh while a save is still in flight —
+// otherwise in-progress Supabase deletes/upserts get cancelled mid-way, leaving stale data.
+window.addEventListener('beforeunload', function(e){
+  if(window._savePending){
+    e.preventDefault();
+    e.returnValue = 'Changes are still saving — leaving now may lose some updates.';
+    return e.returnValue;
+  }
+});
 
 // ── Column toggle ──────────────────────────────────────────────────────────────
 function toggleColDropdown(){
