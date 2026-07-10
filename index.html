@@ -2590,9 +2590,8 @@ function pgNotIn(field, values){
 }
 
 async function saveToSupabase(state){
+  // master_list -> full replace
   try{
-    // master_list -> full replace (delete everything, insert current roster fresh).
-    // Avoids not.in.() list filters entirely, which have proven unreliable via REST.
     await sbFetch(`master_list?code=neq.__NEVER__`, 'DELETE');
     if(state.masterList && state.masterList.length){
       const rows = state.masterList.map(m=>({
@@ -2605,54 +2604,70 @@ async function saveToSupabase(state){
       }));
       await sbFetch('master_list', 'POST', rows, {'Prefer':'return=minimal'});
     }
+  } catch(e){ console.error('❌ Supabase sync failed for master_list:', e.message); }
 
-    // employees -> for each month present locally, delete that month's rows entirely then
-    // insert fresh. Simple month=eq.X filter only — this is what actually needs to be reliable
-    // for "refresh June with fewer resources" to work correctly.
-    for(const m of (state.allMonths||[])){
+  // employees -> for each month present locally, delete that month's rows entirely then
+  // insert fresh. Each month is isolated so one bad month can't block the others.
+  for(const m of (state.allMonths||[])){
+    try{
       const emps = (state.employeesByMonth && state.employeesByMonth[m]) || [];
       await sbFetch(`employees?month=eq.${m}`, 'DELETE');
       if(emps.length){
-        const rows = emps.map(e=>({
+        // Defensive de-dupe: guard against two rows sharing the same code within this month,
+        // which would violate the unique(code,month) constraint and abort the whole insert.
+        const seen = new Set();
+        const dedupedEmps = emps.filter(e=>{
+          if(seen.has(e.code)) { console.warn(`⚠️ Duplicate code ${e.code} within month ${m} — keeping first, dropping extra for DB sync`); return false; }
+          seen.add(e.code); return true;
+        });
+        const rows = dedupedEmps.map(e=>({
           code:e.code, name:e.name||'', practice:e.practice||'', country:e.country||'', cost:e.cost||0,
           month:m, billable_md:e.billableMD||0, non_billable_md:e.nonBillableMD||0, int_proj_md:e.intProjMD||0,
           status:e.status||''
         }));
         await sbFetch('employees', 'POST', rows, {'Prefer':'return=minimal'});
       }
-    }
-    // Any month that used to exist but is no longer in the current month list at all must be
-    // fully removed too (e.g. a Timesheet replace that dropped a month entirely).
-    try{
-      const monthRows = await sbFetch('employees?select=month');
-      const dbMonths = [...new Set((monthRows||[]).map(r=>r.month))];
-      const currentMonths = state.allMonths||[];
-      for(const dbMonth of dbMonths){
-        if(!currentMonths.includes(dbMonth)){
-          await sbFetch(`employees?month=eq.${dbMonth}`, 'DELETE');
-          await sbFetch(`removed_resources?month=eq.${dbMonth}`, 'DELETE');
-        }
+    } catch(e){ console.error(`❌ Supabase sync failed for employees month ${m}:`, e.message); }
+  }
+  // Any month that used to exist but is no longer in the current month list at all must be
+  // fully removed too (e.g. a Timesheet replace that dropped a month entirely).
+  try{
+    const monthRows = await sbFetch('employees?select=month');
+    const dbMonths = [...new Set((monthRows||[]).map(r=>r.month))];
+    const currentMonths = state.allMonths||[];
+    for(const dbMonth of dbMonths){
+      if(!currentMonths.includes(dbMonth)){
+        await sbFetch(`employees?month=eq.${dbMonth}`, 'DELETE');
+        await sbFetch(`removed_resources?month=eq.${dbMonth}`, 'DELETE');
       }
-    } catch(e){ console.warn('Stale-month cleanup failed:', e); }
+    }
+  } catch(e){ console.error('❌ Stale-month cleanup failed:', e.message); }
 
-    // wf_actions -> full replace
+  // wf_actions -> full replace
+  try{
     await sbFetch(`wf_actions?code=neq.__NEVER__`, 'DELETE');
     const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
     if(waRows.length) await sbFetch('wf_actions', 'POST', waRows, {'Prefer':'return=minimal'});
+  } catch(e){ console.error('❌ Supabase sync failed for wf_actions:', e.message); }
 
-    // wf_action_options -> full replace
+  // wf_action_options -> full replace
+  try{
     await sbFetch(`wf_action_options?label=neq.__NEVER__`, 'DELETE');
     if(state.wfActionOptions && state.wfActionOptions.length){
       const optRows = state.wfActionOptions.map((label,i)=>({label, sort_order:i}));
       await sbFetch('wf_action_options', 'POST', optRows, {'Prefer':'return=minimal'});
     }
+  } catch(e){ console.error('❌ Supabase sync failed for wf_action_options:', e.message); }
 
-    // pas_roles -> full replace, from the Team Data workbook's PAS Roles sheet
+  // pas_roles -> full replace, from the Team Data workbook's PAS Roles sheet
+  try{
     await sbFetch(`pas_roles?masked_role=neq.__NEVER__`, 'DELETE');
     const prRows = Object.entries(pasRoles||{}).map(([role,r])=>({masked_role:role, onshore:r.onshore||0, offshore:r.offshore||0}));
     if(prRows.length) await sbFetch('pas_roles', 'POST', prRows, {'Prefer':'return=minimal'});
+  } catch(e){ console.error('❌ Supabase sync failed for pas_roles:', e.message); }
 
-    // removed_resources -> full replace, simpler than per-month diffing
+  // removed_resources -> full replace, simpler than per-month diffing
+  try{
     await sbFetch(`removed_resources?code=neq.__NEVER__`, 'DELETE');
     const allRemovedRows=[];
     Object.keys(state.removedByMonth||{}).forEach(m=>{
@@ -2661,16 +2676,19 @@ async function saveToSupabase(state){
       });
     });
     if(allRemovedRows.length) await sbFetch('removed_resources', 'POST', allRemovedRows, {'Prefer':'return=minimal'});
+  } catch(e){ console.error('❌ Supabase sync failed for removed_resources:', e.message); }
 
-    // app_state -> the small leftover bits that aren't really "resource data"
+  // app_state -> the small leftover bits that aren't really "resource data"
+  try{
     await sbFetch('app_state?on_conflict=id', 'POST', [{
       id:1, selected_month:state.selectedMonth||null,
       col_visibility:state.colVisibility||{}, edited_fields_by_month:state.editedFieldsByMonth||{},
       original_data_by_month:state.originalDataByMonth||{}, added_codes_by_month:state.addedCodesByMonth||{},
       shared_filter: state.sharedFilter || ['__all__']
     }], {'Prefer':'resolution=merge-duplicates,return=minimal'});
-    console.log('✅ Saved to Supabase (structured tables)');
-  } catch(e){ console.warn('Supabase save failed:', e); }
+  } catch(e){ console.error('❌ Supabase sync failed for app_state:', e.message); }
+
+  console.log('✅ Supabase sync pass complete');
 }
 
 async function loadFromSupabase(){
