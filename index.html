@@ -1452,11 +1452,9 @@ function rebuildTimesheetOnly(raw){
   if(filterSepEl) filterSepEl.style.display=allMonths.length>0?'':'none';
   const fuzzyPairs0=findFuzzyDuplicates(employeesByMonth[selectedMonth]||[]);
   const _dupLog1=[];
-  const fuzzyPairs=autoResolveDuplicates(fuzzyPairs0,_dupLog1);
+  autoResolveDuplicates(fuzzyPairs0,_dupLog1); // still auto-resolves clear-cut cases silently, no popup
   lastDupResolveLog=_dupLog1;
-  if(fuzzyPairs.length>0){ initDashboard(); if(_dupLog1.length>0) showDupResolveReport(_dupLog1,null); showDupReview(fuzzyPairs); return; }
   initDashboard();
-  if(_dupLog1.length>0) showDupResolveReport(_dupLog1, null);
 }
 
 function parseFile(file){
@@ -1650,21 +1648,14 @@ function buildData(raw,ml){
   renderMonthTabs();
   document.getElementById('monthFilterBar').style.display = allMonths.length>0 ? 'flex' : 'none';
 
-  // Check for fuzzy duplicates before showing dashboard
+  // Duplicate detection still runs (auto-resolves clear-cut cases silently), but no popup/wizard
   const currentMonthEmps = employeesByMonth[selectedMonth]||[];
   const fuzzyPairs0 = findFuzzyDuplicates(currentMonthEmps);
   const _dupLog2=[];
-  const fuzzyPairs = autoResolveDuplicates(fuzzyPairs0,_dupLog2);
+  autoResolveDuplicates(fuzzyPairs0,_dupLog2);
   lastDupResolveLog=_dupLog2;
-  if(fuzzyPairs.length>0){
-    initDashboard();
-    if(_dupLog2.length>0) showDupResolveReport(_dupLog2,null);
-    showDupReview(fuzzyPairs);
-    return;
-  }
 
   initDashboard();
-  if(_dupLog2.length>0) showDupResolveReport(_dupLog2, null);
 }
 
 function initDashboard(){
