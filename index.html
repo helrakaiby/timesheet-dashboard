@@ -337,6 +337,13 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <div class="kpi-card"><div class="kpi-label">Overall billability</div><div class="kpi-value" id="kpiBill">—</div><div class="kpi-sub">Billable cost / Total cost</div></div>
     <div class="kpi-card"><div class="kpi-label">Overall utilization</div><div class="kpi-value" id="kpiUtil">—</div><div class="kpi-sub">(Billable + Int. projects) / Total MD</div></div>
     <div class="kpi-card"><div class="kpi-label">Total billable cost</div><div class="kpi-value" id="kpiCost">—</div><div class="kpi-sub" id="kpiTotalCost"></div></div>
+    <div class="kpi-card"><div class="kpi-label">Confirmed billability / utilization</div>
+      <div class="kpi-value" style="display:flex;align-items:baseline;gap:14px">
+        <span><span id="kpiConfirmedBill">—</span><span style="font-size:11px;color:var(--text2);display:block;font-weight:400">billability</span></span>
+        <span><span id="kpiConfirmedUtil">—</span><span style="font-size:11px;color:var(--text2);display:block;font-weight:400">utilization</span></span>
+      </div>
+      <div class="kpi-sub" id="kpiConfirmedSub">Posted/Approved only</div>
+    </div>
   </div>
 
   <!-- Workforce KPI cards (shown only on workforce tab) -->
@@ -1684,6 +1691,17 @@ function updateKPIs(){
   document.getElementById('kpiCost').textContent=fmt(tBC);
   document.getElementById('kpiTotalCost').textContent='Total cost: '+fmt(tTC);
   document.getElementById('kpiMonth').textContent=selectedMonth||allMonths.join(' · ');
+
+  // Confirmed billability/utilization — Posted/Approved statuses only
+  const confirmedEmps = emps.filter(e=>{
+    const s=(e.status||'').toUpperCase().replace(/[\s_]/g,'-');
+    return s==='POSTED'||s==='APPROVED';
+  });
+  let cBC=0,cTC=0,cBMD=0,cIPMD=0,cMD=0;
+  confirmedEmps.forEach(e=>{const{bc,tc,tot}=calc(e);cBC+=bc;cTC+=tc;cBMD+=e.billableMD;cIPMD+=e.intProjMD;cMD+=tot;});
+  document.getElementById('kpiConfirmedBill').textContent=cTC>0?pct(cBC/cTC):'—';
+  document.getElementById('kpiConfirmedUtil').textContent=cMD>0?pct((cBMD+cIPMD)/cMD):'—';
+  document.getElementById('kpiConfirmedSub').textContent=`Posted/Approved only • ${confirmedEmps.length} resources`;
 }
 
 // ── Sort icons ─────────────────────────────────────────────────────────────
