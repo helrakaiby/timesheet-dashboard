@@ -2591,7 +2591,9 @@ function pgNotIn(field, values){
 
 async function saveToSupabase(state){
   try{
-    // master_list -> upsert every resource's profile row
+    // master_list -> full replace (delete everything, insert current roster fresh).
+    // Avoids not.in.() list filters entirely, which have proven unreliable via REST.
+    await sbFetch(`master_list?code=neq.__NEVER__`, 'DELETE');
     if(state.masterList && state.masterList.length){
       const rows = state.masterList.map(m=>({
         code:m.code, name:m.name||'', old_id:m.oldId||'', practice:m.practice||'', shore:m.shore||'',
@@ -2601,55 +2603,65 @@ async function saveToSupabase(state){
         location:m.location||'', yoe:m.yoe||'', direct_manager:m.directManager||'', iqama_class:m.iqamaClass||'',
         resigned_date:m.resignedDate||''
       }));
-      await sbFetch('master_list?on_conflict=code', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-      // Remove any master_list rows whose code is no longer part of the current roster
-      // (e.g. someone's Employee ID changed from Q1793 to E3713 — the old Q1793 row must go).
-      const currentCodes = state.masterList.map(m=>m.code);
-      await sbFetch(`master_list?${pgNotIn('code', currentCodes)}`, 'DELETE');
+      await sbFetch('master_list', 'POST', rows, {'Prefer':'return=minimal'});
     }
-    // employees -> upsert one row per employee per month, then delete any codes
-    // for that SAME month that are no longer present (e.g. June refreshed from 152 down to 5 resources)
+
+    // employees -> for each month present locally, delete that month's rows entirely then
+    // insert fresh. Simple month=eq.X filter only — this is what actually needs to be reliable
+    // for "refresh June with fewer resources" to work correctly.
     for(const m of (state.allMonths||[])){
       const emps = (state.employeesByMonth && state.employeesByMonth[m]) || [];
-      if(!emps.length) continue;
-      const rows = emps.map(e=>({
-        code:e.code, name:e.name||'', practice:e.practice||'', country:e.country||'', cost:e.cost||0,
-        month:m, billable_md:e.billableMD||0, non_billable_md:e.nonBillableMD||0, int_proj_md:e.intProjMD||0,
-        status:e.status||''
-      }));
-      await sbFetch('employees?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-      const currentMonthCodes = emps.map(e=>e.code);
-      await sbFetch(`employees?month=eq.${m}&${pgNotIn('code', currentMonthCodes)}`, 'DELETE');
+      await sbFetch(`employees?month=eq.${m}`, 'DELETE');
+      if(emps.length){
+        const rows = emps.map(e=>({
+          code:e.code, name:e.name||'', practice:e.practice||'', country:e.country||'', cost:e.cost||0,
+          month:m, billable_md:e.billableMD||0, non_billable_md:e.nonBillableMD||0, int_proj_md:e.intProjMD||0,
+          status:e.status||''
+        }));
+        await sbFetch('employees', 'POST', rows, {'Prefer':'return=minimal'});
+      }
     }
-    // Remove any months that are no longer part of the current dataset (e.g. a Timesheet
-    // replace that dropped a month) so a refresh doesn't silently bring old months back.
-    if(state.allMonths && state.allMonths.length){
-      await sbFetch(`employees?${pgNotIn('month', state.allMonths)}`, 'DELETE');
-      await sbFetch(`removed_resources?${pgNotIn('month', state.allMonths)}`, 'DELETE');
-    }
-    // wf_actions -> one row per tagged resource
+    // Any month that used to exist but is no longer in the current month list at all must be
+    // fully removed too (e.g. a Timesheet replace that dropped a month entirely).
+    try{
+      const monthRows = await sbFetch('employees?select=month');
+      const dbMonths = [...new Set((monthRows||[]).map(r=>r.month))];
+      const currentMonths = state.allMonths||[];
+      for(const dbMonth of dbMonths){
+        if(!currentMonths.includes(dbMonth)){
+          await sbFetch(`employees?month=eq.${dbMonth}`, 'DELETE');
+          await sbFetch(`removed_resources?month=eq.${dbMonth}`, 'DELETE');
+        }
+      }
+    } catch(e){ console.warn('Stale-month cleanup failed:', e); }
+
+    // wf_actions -> full replace
+    await sbFetch(`wf_actions?code=neq.__NEVER__`, 'DELETE');
     const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
-    if(waRows.length) await sbFetch('wf_actions?on_conflict=code', 'POST', waRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-    // Remove wf_actions rows for codes no longer tagged locally (e.g. action cleared/removed)
-    const taggedCodes = Object.keys(state.wfActions||{});
-    if(taggedCodes.length){
-      await sbFetch(`wf_actions?${pgNotIn('code', taggedCodes)}`, 'DELETE');
-    }
-    // wf_action_options -> keep the dropdown list in sync too
+    if(waRows.length) await sbFetch('wf_actions', 'POST', waRows, {'Prefer':'return=minimal'});
+
+    // wf_action_options -> full replace
+    await sbFetch(`wf_action_options?label=neq.__NEVER__`, 'DELETE');
     if(state.wfActionOptions && state.wfActionOptions.length){
       const optRows = state.wfActionOptions.map((label,i)=>({label, sort_order:i}));
-      await sbFetch('wf_action_options?on_conflict=label', 'POST', optRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-      // Remove any options that were deleted locally — otherwise they silently resurrect on next load
-      await sbFetch(`wf_action_options?${pgNotIn('label', state.wfActionOptions)}`, 'DELETE');
+      await sbFetch('wf_action_options', 'POST', optRows, {'Prefer':'return=minimal'});
     }
-    // pas_roles -> onshore/offshore rate per role, from the Team Data workbook's PAS Roles sheet
+
+    // pas_roles -> full replace, from the Team Data workbook's PAS Roles sheet
+    await sbFetch(`pas_roles?masked_role=neq.__NEVER__`, 'DELETE');
     const prRows = Object.entries(pasRoles||{}).map(([role,r])=>({masked_role:role, onshore:r.onshore||0, offshore:r.offshore||0}));
-    if(prRows.length) await sbFetch('pas_roles?on_conflict=masked_role', 'POST', prRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-    // removed_resources -> per month
-    for(const m of Object.keys(state.removedByMonth||{})){
-      const rows=(state.removedByMonth[m]||[]).map(e=>({code:e.code, name:e.name||'', practice:e.practice||'', month:m, remove_action:e.removeAction||null}));
-      if(rows.length) await sbFetch('removed_resources?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-    }
+    if(prRows.length) await sbFetch('pas_roles', 'POST', prRows, {'Prefer':'return=minimal'});
+
+    // removed_resources -> full replace, simpler than per-month diffing
+    await sbFetch(`removed_resources?code=neq.__NEVER__`, 'DELETE');
+    const allRemovedRows=[];
+    Object.keys(state.removedByMonth||{}).forEach(m=>{
+      (state.removedByMonth[m]||[]).forEach(e=>{
+        allRemovedRows.push({code:e.code, name:e.name||'', practice:e.practice||'', month:m, remove_action:e.removeAction||null});
+      });
+    });
+    if(allRemovedRows.length) await sbFetch('removed_resources', 'POST', allRemovedRows, {'Prefer':'return=minimal'});
+
     // app_state -> the small leftover bits that aren't really "resource data"
     await sbFetch('app_state?on_conflict=id', 'POST', [{
       id:1, selected_month:state.selectedMonth||null,
