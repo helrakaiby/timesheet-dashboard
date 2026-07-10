@@ -226,7 +226,6 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
       👥 Update Team Data
       <input type="file" id="teamDataInputHdr" accept=".xlsx,.xls" style="display:none" onchange="updateTeamDataOnly(this.files[0])">
     </label>
-    <button class="file-btn" id="checkDupBtn" style="display:none" onclick="runDuplicateCheckNow()" title="Scan currently loaded data for duplicate resources (same person under old/new ID)">🔍 Check Duplicates</button>
     <button class="file-btn" id="exportSessionBtn" onclick="exportSession()" title="Export full session to share or resume on another device">⬆ Export session</button>
     <label class="file-btn" id="loadSessionBtn" title="Load a previously exported session file">
       ⬇ Load session
@@ -826,7 +825,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
       <div class="missing-header">
         <span class="missing-title">Non Compliant</span>
         <span class="missing-badge red" id="notEnteredCount">0</span>
-        <span style="font-size:11px;color:var(--text2)">Resources with status NOT-ENTERED or NOT-SUBMITTED</span>
+        <span style="font-size:11px;color:var(--text2)">Resources with status NOT-ENTERED, NOT-SUBMITTED, or REJECTED</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
           <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="missNotEnteredSearch" placeholder="Search…" oninput="searchMissNotEntered=this.value;renderMissingTable()"></div>
           <button class="export-btn" onclick="exportMissingTable('notEnteredBody','Non-Compliant')">⬇ Export</button>
@@ -1672,7 +1671,7 @@ function initDashboard(){
   document.getElementById('uploadScreen').style.display='none';
   document.getElementById('dupReviewScreen').style.display='none';
   document.getElementById('dashboard').style.display='block';
-  document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
+  document.getElementById('changeBtnWrap').style.display='flex';
   if(_teamDataOnly){
     // Show month filter bar with just practice filter (no month tabs)
     document.getElementById('monthFilterBar').style.display='flex';
@@ -1739,22 +1738,32 @@ function sortIcons(prefix,col,asc,n){
 function sortBill(col){if(_resizeDragging)return;if(billSort.col===col)billSort.asc=!billSort.asc;else{billSort.col=col;billSort.asc=true;}renderBillTable();}
 function renderBillTable(){
   sortIcons('bs',billSort.col,billSort.asc,16);
-  const q=(document.getElementById('billSearch').value||'').toLowerCase();
-  let emps=filtEmps(currentEmps(), sharedFilter).filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
+  const q=(document.getElementById('billSearch').value||'').toLowerCase().trim();
+  const baseEmps = filtEmps(currentEmps(), sharedFilter);
+
+  // Compute duplicate pairs against the FULL month (before search) so "dup" search works consistently
+  const allDupPairs = findMasterListDuplicatePairs(baseEmps);
+  const dupPartner = {}; // code -> partner code
+  allDupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
+
+  let emps;
+  if(q==='dup'||q==='dups'||q==='duplicate'||q==='duplicates'){
+    emps = baseEmps.filter(e=>dupPartner[e.code]);
+  } else {
+    emps = baseEmps.filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
+  }
   if(billSort.col>=0){
     emps=[...emps].sort((a,b)=>{
       const sk=e=>{const{tot,bc,tc,bpct,upct}=calc(e);switch(billSort.col){case 1:return e.code;case 2:return e.name;case 3:return e.practice;case 4:return e.country;case 5:return e.cost;case 7:return e.billableMD;case 8:return e.nonBillableMD;case 9:return e.intProjMD;case 10:return tot;case 11:return bc;case 12:return tc;case 13:return bpct;case 14:return upct;case 15:return e.status;default:return 0;}};
       const va=sk(a),vb=sk(b);return billSort.asc?(va>vb?1:va<vb?-1:0):(va<vb?1:va>vb?-1:0);
     });
   }
-  document.getElementById('billCount').textContent=`${emps.length} resources`;
 
-  const dupPairs = findMasterListDuplicatePairs(emps);
-  const dupPartner = {}; // code -> partner code
-  dupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
-  const dupUniqueCount = emps.length - dupPairs.length; // each pair counts as 1, not 2
-  document.getElementById('billCount').textContent = dupPairs.length>0
-    ? `${emps.length} resources (${dupUniqueCount} unique, ${dupPairs.length} duplicate pair${dupPairs.length>1?'s':''})`
+  // Duplicate pairs within the currently displayed subset (for the headcount label)
+  const dupPairs = emps.filter(e=>dupPartner[e.code]).length/2;
+  const dupUniqueCount = emps.length - dupPairs; // each pair counts as 1, not 2
+  document.getElementById('billCount').textContent = dupPairs>0
+    ? `${emps.length} resources (${dupUniqueCount} unique, ${dupPairs} duplicate pair${dupPairs>1?'s':''})`
     : `${emps.length} resources`;
 
   document.getElementById('billBody').innerHTML=emps.length===0
@@ -2023,6 +2032,20 @@ function renderBelowTable(){
 // ── Missing ────────────────────────────────────────────────────────────────
 function renderMissingTable(){
   const tsCodes=new Set(currentEmps().map(e=>e.code));
+  // Duplicate detection (same logic as Billability Summary), used to mark Non Compliant
+  // resources AND to exclude anyone whose duplicate partner already has a valid status
+  // (Posted/Approved/Under-Approval) — since they effectively did comply, just under the other ID.
+  const missDupPairs = findMasterListDuplicatePairs(currentEmps());
+  const missDupPartner = {}; // code -> partner code
+  missDupPairs.forEach(p=>{ missDupPartner[p.emp1.code]=p.emp2.code; missDupPartner[p.emp2.code]=p.emp1.code; });
+  const isPartnerValid = code=>{
+    const partnerCode = missDupPartner[code];
+    if(!partnerCode) return false;
+    const partner = currentEmps().find(e=>e.code===partnerCode);
+    if(!partner) return false;
+    const s=(partner.status||'').toUpperCase().replace(/[\s_]/g,'-');
+    return s==='POSTED'||s==='APPROVED'||s==='UNDER-APPROVAL';
+  };
   // mlCodes includes both current codes AND old IDs for full matching
   const mlCodes=new Set([
     ...masterList.map(m=>m.code),
@@ -2074,7 +2097,10 @@ function renderMissingTable(){
   const mneq=(document.getElementById('missNotEnteredSearch')?.value||'').toLowerCase();
   const notEntered = filtEmps(currentEmps(),sharedFilter).filter(e=>{
     const s = (e.status||'').toUpperCase().replace(/[\s_]/g,'-');
-    return (s==='NOT-ENTERED'||s==='NOT-SUBMITTED') && (!mneq||(e.name.toLowerCase().includes(mneq)||e.code.toLowerCase().includes(mneq)));
+    const isNonCompliant = (s==='NOT-ENTERED'||s==='NOT-SUBMITTED'||s==='REJECTED');
+    if(!isNonCompliant) return false;
+    if(isPartnerValid(e.code)) return false; // covered by their duplicate partner's valid status
+    return (!mneq||(e.name.toLowerCase().includes(mneq)||e.code.toLowerCase().includes(mneq)));
   });
   document.getElementById('notEnteredCount').textContent = notEntered.length;
   document.getElementById('notEnteredBody').innerHTML = notEntered.length===0
@@ -2794,7 +2820,7 @@ function loadState(){
     document.getElementById('monthFilterBar').style.display='flex';
     document.getElementById('uploadScreen').style.display='none';
     document.getElementById('dashboard').style.display='block';
-    document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
+    document.getElementById('changeBtnWrap').style.display='flex';
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
     
@@ -2948,7 +2974,7 @@ function loadSessionFile(file){
       document.getElementById('monthFilterBar').style.display='flex';
       document.getElementById('uploadScreen').style.display='none';
       document.getElementById('dashboard').style.display='block';
-      document.getElementById('changeBtnWrap').style.display='flex';document.getElementById('checkDupBtn').style.display='flex';
+      document.getElementById('changeBtnWrap').style.display='flex';
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
       
@@ -4161,26 +4187,6 @@ function autoResolveDuplicates(pairs, resolvedLog){
 }
 
 let lastDupResolveLog=[];
-
-function runDuplicateCheckNow(){
-  // Scan every month (not just the selected one) for fuzzy-duplicate resources,
-  // auto-resolving any pair where one side has a valid/submitted status.
-  const seenPairKeys=new Set();
-  let remaining=[];
-  const resolvedLog=[];
-  allMonths.forEach(m=>{
-    const pairs0 = findFuzzyDuplicates(employeesByMonth[m]||[]);
-    const stillPending = autoResolveDuplicates(pairs0, resolvedLog);
-    stillPending.forEach(p=>{
-      const key=[p.emp1.code,p.emp2.code].sort().join('|');
-      if(!seenPairKeys.has(key)){ seenPairKeys.add(key); remaining.push(p); }
-    });
-  });
-  lastDupResolveLog=resolvedLog;
-  initDashboard();
-  autoSave();
-  showDupResolveReport(resolvedLog, remaining);
-}
 
 function showDupResolveReport(resolvedLog, remaining){
   const rows = resolvedLog.map(r=>`<tr>
