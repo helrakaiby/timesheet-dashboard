@@ -1450,10 +1450,6 @@ function rebuildTimesheetOnly(raw){
   const filterSepEl=document.querySelector('.filter-sep');
   if(monthTabsEl) monthTabsEl.style.display=allMonths.length>0?'':'none';
   if(filterSepEl) filterSepEl.style.display=allMonths.length>0?'':'none';
-  const fuzzyPairs0=findFuzzyDuplicates(employeesByMonth[selectedMonth]||[]);
-  const _dupLog1=[];
-  autoResolveDuplicates(fuzzyPairs0,_dupLog1); // still auto-resolves clear-cut cases silently, no popup
-  lastDupResolveLog=_dupLog1;
   initDashboard();
 }
 
@@ -1648,13 +1644,8 @@ function buildData(raw,ml){
   renderMonthTabs();
   document.getElementById('monthFilterBar').style.display = allMonths.length>0 ? 'flex' : 'none';
 
-  // Duplicate detection still runs (auto-resolves clear-cut cases silently), but no popup/wizard
-  const currentMonthEmps = employeesByMonth[selectedMonth]||[];
-  const fuzzyPairs0 = findFuzzyDuplicates(currentMonthEmps);
-  const _dupLog2=[];
-  autoResolveDuplicates(fuzzyPairs0,_dupLog2);
-  lastDupResolveLog=_dupLog2;
-
+  // Duplicates now stay as separate rows — no silent auto-delete. They're handled by the
+  // marking/cost/headcount system in Billability Summary and Non Compliant instead.
   initDashboard();
 }
 
