@@ -40,10 +40,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .col-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:.4rem}
 .col-tag{font-size:10px;background:var(--bg3);color:var(--text2);padding:2px 7px;border-radius:4px;font-family:monospace}
 .main{max-width:1500px;margin:0 auto;padding:1.25rem;display:none}
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
-.kpi-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.5rem}
+.kpi-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rl);padding:0.85rem 1rem;min-width:0}
 .kpi-label{font-size:11px;color:var(--text2);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.04em}
-.kpi-value{font-size:24px;font-weight:500;color:var(--text)}
+.kpi-value{font-size:20px;font-weight:500;color:var(--text)}
 .kpi-sub{font-size:11px;color:var(--text3);margin-top:3px}
 .tabs{display:flex;gap:2px;background:var(--bg3);border-radius:var(--r);padding:3px;margin-bottom:1.25rem;width:fit-content;flex-wrap:wrap}
 .tab{padding:6px 16px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--text2);font-weight:400;border:none;background:transparent;font-family:inherit}
@@ -338,9 +338,9 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <div class="kpi-card"><div class="kpi-label">Overall utilization</div><div class="kpi-value" id="kpiUtil">—</div><div class="kpi-sub">(Billable + Int. projects) / Total MD</div></div>
     <div class="kpi-card"><div class="kpi-label">Total billable cost</div><div class="kpi-value" id="kpiCost">—</div><div class="kpi-sub" id="kpiTotalCost"></div></div>
     <div class="kpi-card"><div class="kpi-label">Confirmed billability / utilization</div>
-      <div class="kpi-value" style="display:flex;align-items:baseline;gap:14px">
-        <span><span id="kpiConfirmedBill">—</span><span style="font-size:11px;color:var(--text2);display:block;font-weight:400">billability</span></span>
-        <span><span id="kpiConfirmedUtil">—</span><span style="font-size:11px;color:var(--text2);display:block;font-weight:400">utilization</span></span>
+      <div class="kpi-value" style="display:flex;align-items:baseline;gap:10px">
+        <span><span id="kpiConfirmedBill">—</span><span style="font-size:10px;color:var(--text2);display:block;font-weight:400">billability</span></span>
+        <span><span id="kpiConfirmedUtil">—</span><span style="font-size:10px;color:var(--text2);display:block;font-weight:400">utilization</span></span>
       </div>
       <div class="kpi-sub" id="kpiConfirmedSub">Posted/Approved only</div>
     </div>
