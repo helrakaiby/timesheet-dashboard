@@ -2580,6 +2580,15 @@ async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
   return text ? JSON.parse(text) : null;
 }
 
+// Build a properly URL-encoded PostgREST not.in.(...) filter value.
+// Values are double-quoted (so ones containing spaces/colons/etc. still work), and the
+// ENTIRE resulting value is passed through encodeURIComponent so the server sees exactly
+// what we intend after it URL-decodes the query string — no raw quotes/commas left ambiguous.
+function pgNotIn(field, values){
+  const list = values.map(v=>`"${String(v).replace(/"/g,'\\"')}"`).join(',');
+  return `${field}=not.in.(${encodeURIComponent(list)})`;
+}
+
 async function saveToSupabase(state){
   try{
     // master_list -> upsert every resource's profile row
@@ -2595,8 +2604,8 @@ async function saveToSupabase(state){
       await sbFetch('master_list?on_conflict=code', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
       // Remove any master_list rows whose code is no longer part of the current roster
       // (e.g. someone's Employee ID changed from Q1793 to E3713 — the old Q1793 row must go).
-      const currentCodes = state.masterList.map(m=>`"${m.code}"`).join(',');
-      await sbFetch(`master_list?code=not.in.(${currentCodes})`, 'DELETE');
+      const currentCodes = state.masterList.map(m=>m.code);
+      await sbFetch(`master_list?${pgNotIn('code', currentCodes)}`, 'DELETE');
     }
     // employees -> upsert one row per employee per month, then delete any codes
     // for that SAME month that are no longer present (e.g. June refreshed from 152 down to 5 resources)
@@ -2609,15 +2618,14 @@ async function saveToSupabase(state){
         status:e.status||''
       }));
       await sbFetch('employees?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
-      const currentMonthCodes = emps.map(e=>`"${e.code}"`).join(',');
-      await sbFetch(`employees?month=eq.${m}&code=not.in.(${currentMonthCodes})`, 'DELETE');
+      const currentMonthCodes = emps.map(e=>e.code);
+      await sbFetch(`employees?month=eq.${m}&${pgNotIn('code', currentMonthCodes)}`, 'DELETE');
     }
     // Remove any months that are no longer part of the current dataset (e.g. a Timesheet
     // replace that dropped a month) so a refresh doesn't silently bring old months back.
     if(state.allMonths && state.allMonths.length){
-      const monthList = state.allMonths.map(m=>`"${m}"`).join(',');
-      await sbFetch(`employees?month=not.in.(${monthList})`, 'DELETE');
-      await sbFetch(`removed_resources?month=not.in.(${monthList})`, 'DELETE');
+      await sbFetch(`employees?${pgNotIn('month', state.allMonths)}`, 'DELETE');
+      await sbFetch(`removed_resources?${pgNotIn('month', state.allMonths)}`, 'DELETE');
     }
     // wf_actions -> one row per tagged resource
     const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
@@ -2625,16 +2633,14 @@ async function saveToSupabase(state){
     // Remove wf_actions rows for codes no longer tagged locally (e.g. action cleared/removed)
     const taggedCodes = Object.keys(state.wfActions||{});
     if(taggedCodes.length){
-      const codeList = taggedCodes.map(c=>`"${c}"`).join(',');
-      await sbFetch(`wf_actions?code=not.in.(${codeList})`, 'DELETE');
+      await sbFetch(`wf_actions?${pgNotIn('code', taggedCodes)}`, 'DELETE');
     }
     // wf_action_options -> keep the dropdown list in sync too
     if(state.wfActionOptions && state.wfActionOptions.length){
       const optRows = state.wfActionOptions.map((label,i)=>({label, sort_order:i}));
       await sbFetch('wf_action_options?on_conflict=label', 'POST', optRows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
       // Remove any options that were deleted locally — otherwise they silently resurrect on next load
-      const currentLabels = state.wfActionOptions.map(l=>`"${l.replace(/"/g,'\\"')}"`).join(',');
-      await sbFetch(`wf_action_options?label=not.in.(${currentLabels})`, 'DELETE');
+      await sbFetch(`wf_action_options?${pgNotIn('label', state.wfActionOptions)}`, 'DELETE');
     }
     // pas_roles -> onshore/offshore rate per role, from the Team Data workbook's PAS Roles sheet
     const prRows = Object.entries(pasRoles||{}).map(([role,r])=>({masked_role:role, onshore:r.onshore||0, offshore:r.offshore||0}));
