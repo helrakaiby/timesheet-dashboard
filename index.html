@@ -2530,6 +2530,10 @@ async function saveToSupabase(state){
         resigned_date:m.resignedDate||''
       }));
       await sbFetch('master_list?on_conflict=code', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+      // Remove any master_list rows whose code is no longer part of the current roster
+      // (e.g. someone's Employee ID changed from Q1793 to E3713 — the old Q1793 row must go).
+      const currentCodes = state.masterList.map(m=>`"${m.code}"`).join(',');
+      await sbFetch(`master_list?code=not.in.(${currentCodes})`, 'DELETE');
     }
     // employees -> upsert one row per employee per month
     for(const m of (state.allMonths||[])){
