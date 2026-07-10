@@ -2607,7 +2607,8 @@ async function saveToSupabase(state){
       const currentCodes = state.masterList.map(m=>`"${m.code}"`).join(',');
       await sbFetch(`master_list?code=not.in.(${currentCodes})`, 'DELETE');
     }
-    // employees -> upsert one row per employee per month
+    // employees -> upsert one row per employee per month, then delete any codes
+    // for that SAME month that are no longer present (e.g. June refreshed from 152 down to 5 resources)
     for(const m of (state.allMonths||[])){
       const emps = (state.employeesByMonth && state.employeesByMonth[m]) || [];
       if(!emps.length) continue;
@@ -2617,6 +2618,8 @@ async function saveToSupabase(state){
         status:e.status||''
       }));
       await sbFetch('employees?on_conflict=code,month', 'POST', rows, {'Prefer':'resolution=merge-duplicates,return=minimal'});
+      const currentMonthCodes = emps.map(e=>`"${e.code}"`).join(',');
+      await sbFetch(`employees?month=eq.${m}&code=not.in.(${currentMonthCodes})`, 'DELETE');
     }
     // Remove any months that are no longer part of the current dataset (e.g. a Timesheet
     // replace that dropped a month) so a refresh doesn't silently bring old months back.
