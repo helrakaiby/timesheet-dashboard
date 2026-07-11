@@ -3862,6 +3862,36 @@ function buildWfActionsPivotData(){
     .sort((a,b)=>a[1].name.localeCompare(b[1].name));
 }
 
+function buildPivotActionSelect(code, month, currentVal){
+  const opts = [...wfActionOptions];
+  if(currentVal && !opts.includes(currentVal)) opts.push(currentVal);
+  const optionsHtml = ['<option value="">— No action —</option>']
+    .concat(opts.map(o=>`<option value="${o.replace(/"/g,'&quot;')}" ${o===currentVal?'selected':''}>${o}</option>`))
+    .concat([`<option value="${ADD_CUSTOM_VALUE}">+ Add custom option…</option>`])
+    .join('');
+  return `<select data-code="${code}" data-month="${month}" onchange="onPivotActionChange(this)"
+      style="width:100%;min-width:140px;border:0.5px solid var(--border2);border-radius:4px;padding:3px 6px;font-size:11px;background:#fffef5;font-family:inherit">
+      ${optionsHtml}
+    </select>`;
+}
+
+function onPivotActionChange(sel){
+  const code = sel.getAttribute('data-code');
+  const month = sel.getAttribute('data-month');
+  if(sel.value === ADD_CUSTOM_VALUE){
+    const newOpt = prompt('Enter a new action / bucket name:');
+    if(newOpt && newOpt.trim()){
+      const trimmed = newOpt.trim();
+      if(!wfActionOptions.includes(trimmed)) wfActionOptions.push(trimmed);
+      setAction(code, month, trimmed);
+    } else { setAction(code, month, getAction(code, month)); }
+  } else {
+    setAction(code, month, sel.value);
+  }
+  autoSave();
+  renderWfActionsPivot();
+}
+
 function renderWfActionsPivot(){
   const rows = buildWfActionsPivotData();
   document.getElementById('wfActionsPivotHead').innerHTML = `<tr style="background:var(--bg2)">
@@ -3875,7 +3905,7 @@ function renderWfActionsPivot(){
     : rows.map(([code,info])=>{
         const cells = allMonths.map(m=>{
           const a = info.byMonth[m];
-          return `<td style="padding:5px 10px">${a?`<span style="font-size:10px;background:var(--bg3);color:var(--text2);padding:2px 8px;border-radius:4px">${a}</span>`:'<span style="color:var(--text3)">—</span>'}</td>`;
+          return `<td style="padding:4px 8px">${buildPivotActionSelect(code, m, a||'')}</td>`;
         }).join('');
         return `<tr style="border-top:0.5px solid var(--border)">
           <td style="padding:5px 10px;font-family:monospace;font-size:10px;color:var(--text2)">${code}</td>
