@@ -3856,6 +3856,14 @@ function buildWfActionsPivotData(){
       codeMap[e.code].name = e.name; codeMap[e.code].practice = e.practice;
     });
   });
+  // Current status = billability in the most recent month, if they're still in the data at all
+  const latestMonth = allMonths[allMonths.length-1];
+  const latestEmps = employeesByMonth[latestMonth]||[];
+  Object.keys(codeMap).forEach(code=>{
+    const latest = latestEmps.find(e=>e.code===code);
+    if(!latest){ codeMap[code].nowPct = null; return; }
+    codeMap[code].nowPct = Math.round(calc(latest).bpct*100);
+  });
   return Object.entries(codeMap)
     .filter(([code,info])=>Object.keys(info.byMonth).length>0)
     .filter(([code,info])=>!q || info.name.toLowerCase().includes(q) || code.toLowerCase().includes(q))
@@ -3898,19 +3906,27 @@ function renderWfActionsPivot(){
     <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Code</th>
     <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Name</th>
     <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Practice</th>
+    <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Now</th>
     ${allMonths.map(m=>`<th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">${m}</th>`).join('')}
   </tr>`;
   document.getElementById('wfActionsPivotBody').innerHTML = rows.length===0
-    ? `<tr><td colspan="${3+allMonths.length}" class="empty">No resources with an action assigned</td></tr>`
+    ? `<tr><td colspan="${4+allMonths.length}" class="empty">No resources with an action assigned</td></tr>`
     : rows.map(([code,info])=>{
         const cells = allMonths.map(m=>{
           const a = info.byMonth[m];
           return `<td style="padding:4px 8px">${buildPivotActionSelect(code, m, a||'')}</td>`;
         }).join('');
-        return `<tr style="border-top:0.5px solid var(--border)">
+        const recovered = info.nowPct!=null && info.nowPct>=70;
+        const nowBadge = info.nowPct==null
+          ? '<span style="font-size:10px;color:var(--text3)">Not in latest month</span>'
+          : recovered
+            ? `<span style="font-size:10px;background:var(--green-bg,#e6f4ea);color:var(--green);padding:2px 8px;border-radius:4px">Recovered · ${info.nowPct}%</span>`
+            : `<span style="font-size:10px;background:var(--red-bg,#fdeaea);color:var(--red);padding:2px 8px;border-radius:4px">Still benched · ${info.nowPct}%</span>`;
+        return `<tr style="border-top:0.5px solid var(--border);${recovered?'opacity:0.7':''}">
           <td style="padding:5px 10px;font-family:monospace;font-size:10px;color:var(--text2)">${code}</td>
           <td style="padding:5px 10px;font-weight:500">${info.name}</td>
           <td style="padding:5px 10px;color:var(--text2)">${info.practice}</td>
+          <td style="padding:5px 10px">${nowBadge}</td>
           ${cells}
         </tr>`;
       }).join('');
@@ -3919,7 +3935,8 @@ function renderWfActionsPivot(){
 function exportWfActionsPivot(){
   const rows = buildWfActionsPivotData();
   xlsxExport(rows.map(([code,info])=>{
-    const row = {'Employee Code':code, 'Employee Name':info.name, 'Practice':info.practice};
+    const row = {'Employee Code':code, 'Employee Name':info.name, 'Practice':info.practice,
+      'Now': info.nowPct==null ? 'Not in latest month' : (info.nowPct>=70?'Recovered':'Still benched')+' · '+info.nowPct+'%'};
     allMonths.forEach(m=>{ row[m] = info.byMonth[m]||''; });
     return row;
   }), 'Actions', 'Workforce-Actions-Across-Months');
