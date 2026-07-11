@@ -2643,10 +2643,15 @@ async function saveToSupabase(state){
     }
   } catch(e){ console.error('❌ Stale-month cleanup failed:', e.message); }
 
-  // wf_actions -> full replace
+  // wf_actions -> full replace. state.wfActions is now {code: {month: action}}
   try{
     await sbFetch(`wf_actions?code=neq.__NEVER__`, 'DELETE');
-    const waRows = Object.entries(state.wfActions||{}).map(([code,action])=>({code,action}));
+    const waRows = [];
+    Object.entries(state.wfActions||{}).forEach(([code, byMonth])=>{
+      Object.entries(byMonth||{}).forEach(([month, action])=>{
+        if(action) waRows.push({code, month, action});
+      });
+    });
     if(waRows.length) await sbFetch('wf_actions', 'POST', waRows, {'Prefer':'return=minimal'});
   } catch(e){ console.error('❌ Supabase sync failed for wf_actions:', e.message); }
 
@@ -2728,7 +2733,10 @@ async function loadFromSupabase(){
     const allMonthsOut = [...monthSet].sort();
 
     const wfActionsOut = {};
-    (waRows||[]).forEach(r=>{ wfActionsOut[r.code]=r.action; });
+    (waRows||[]).forEach(r=>{
+      if(!wfActionsOut[r.code]) wfActionsOut[r.code] = {};
+      wfActionsOut[r.code][r.month] = r.action;
+    });
 
     pasRoles = {};
     (prRows||[]).forEach(r=>{ pasRoles[r.masked_role] = {onshore:Number(r.onshore)||0, offshore:Number(r.offshore)||0}; });
@@ -3339,7 +3347,15 @@ let wfFilter = 'below70';
 let searchBelow='', searchWf='', searchMiss1='', searchMiss2='', searchMissRemoved='', searchMissNotEntered='', searchWfComp=''; // always below70 (overall scope)
 let wfSubFilter = 'all'; // all | ramping | benched — controls charts + table
 let wfDonutInst = null;
-let wfActions = {};
+let wfActions = {}; // {code: {month: action}} — actions are now unique per month
+
+function getAction(code, month){
+  return (wfActions[code] && wfActions[code][month]) || '';
+}
+function setAction(code, month, action){
+  if(!wfActions[code]) wfActions[code] = {};
+  wfActions[code][month] = action;
+}
 let wfActionOptions = [
   'Bucket 1 : Moved to Solution Desk',
   'Bucket 2 : Moved to Managed Services',
@@ -3522,11 +3538,11 @@ function renderWorkforce(){
   // By Action chart — sync removed employees' actions first, then count
   const wfMonth = selectedMonth||allMonths[0];
   (removedByMonth[wfMonth]||[]).forEach(r=>{
-    if(r.removeAction && !wfActions[r.code]) wfActions[r.code] = r.removeAction;
+    if(r.removeAction && !getAction(r.code, wfMonth)) setAction(r.code, wfMonth, r.removeAction);
   });
   const actionMap = {};
   chartEmps.forEach(e=>{
-    const a = wfActions[e.code] || 'No action set';
+    const a = getAction(e.code, wfMonth) || 'No action set';
     actionMap[a] = (actionMap[a]||0)+1;
   });
   // Order: known bucket options first (in their defined order), then any custom ones, then "No action set" last
@@ -3736,24 +3752,7 @@ function buildActionSelect(code, currentVal){
     </select>`;
 }
 
-function onActionSelectChange(sel){
-  const code = sel.getAttribute('data-code');
-  if(sel.value === ADD_CUSTOM_VALUE){
-    const newOpt = prompt('Enter a new action / bucket name:');
-    if(newOpt && newOpt.trim()){
-      const trimmed = newOpt.trim();
-      if(!wfActionOptions.includes(trimmed)) wfActionOptions.push(trimmed);
-      wfActions[code] = trimmed;
-    } else {
-      wfActions[code] = wfActions[code] || '';
-    }
-  } else {
-    wfActions[code] = sel.value;
-  }
-  autoSave();
-  // Re-render the whole workforce view so the By Action chart updates live too
-  renderWorkforce();
-}
+
 
 function renderWfTables(emps){
   const rowHtml=(e)=>{
@@ -3764,11 +3763,11 @@ function renderWfTables(emps){
     const shoreColor = (shore||'').toLowerCase()==='onshore'?'var(--green)':'var(--blue)';
     const bColor  = bpct>=.70?'var(--green)':bpct>=.30?'var(--amber)':'var(--red)';
     const isRemoved = !!e._removed;
+    const wfRowMonth = selectedMonth||allMonths[0];
     // Sync removeAction into wfActions if not already set
-    if(isRemoved && !wfActions[e.code]){
-      const month2 = selectedMonth||allMonths[0];
-      const re = (removedByMonth[month2]||[]).find(r=>r.code===e.code);
-      if(re?.removeAction) wfActions[e.code] = re.removeAction;
+    if(isRemoved && !getAction(e.code, wfRowMonth)){
+      const re = (removedByMonth[wfRowMonth]||[]).find(r=>r.code===e.code);
+      if(re?.removeAction) setAction(e.code, wfRowMonth, re.removeAction);
     }
     const removedBadge = isRemoved ? '<span style="font-size:9px;background:var(--bg3);color:var(--text2);padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle">removed</span>' : '';
     return`<tr style="border-top:0.5px solid var(--border)">
@@ -3781,7 +3780,7 @@ function renderWfTables(emps){
       <td data-wfcol="billpct" style="padding:5px 10px;text-align:right;font-weight:700;color:${bColor}">${billPct}%</td>
       <td data-wfcol="intpct" style="padding:5px 10px;text-align:right;color:var(--text2)">${intPct}%</td>
       <td data-wfcol="action" style="padding:4px 8px">
-        ${buildActionSelect(e.code, wfActions[e.code]||'')}
+        ${buildActionSelect(e.code, getAction(e.code, wfRowMonth))}
       </td>
     </tr>`;
   };
@@ -3827,7 +3826,7 @@ function exportWfTable(){
       'Shore':getShore(e)||'','Monthly Cost':e.cost,
       'Billability%':(bpct*100).toFixed(1)+'%',
       'Internal%':tot>0?(e.intProjMD/tot*100).toFixed(1)+'%':'0%',
-      'Status':e.status,'Action':wfActions[e.code]||''
+      'Status':e.status,'Action':getAction(e.code, selectedMonth||allMonths[0])
     };
   }),label,`Workforce-${label}-${selectedMonth||'All'}`);
 }
@@ -3952,7 +3951,7 @@ function renderWfCompare(){
       const p = calc(e).bpct*100;
       const label = p===0 ? 'Benched 0%' : p<70 ? `Ramping ${p.toFixed(0)}%` : `On target ${p.toFixed(0)}%`;
       codeMap[e.code].statuses[s.month] = label;
-      codeMap[e.code].action = wfActions[e.code] || '';
+      codeMap[e.code].action = getAction(e.code, allMonths[allMonths.length-1]);
     });
   });
   // Only show people who were Benched or Ramping in at least one month
@@ -3991,7 +3990,7 @@ function exportWfCompareTable(){
       const p = calc(e).bpct*100;
       const label = p===0 ? 'Benched 0%' : p<70 ? `Ramping ${p.toFixed(0)}%` : `On target ${p.toFixed(0)}%`;
       codeMap[e.code].statuses[s.month] = label;
-      codeMap[e.code].action = wfActions[e.code] || '';
+      codeMap[e.code].action = getAction(e.code, allMonths[allMonths.length-1]);
     });
   });
   const wfcq=(searchWfComp||'').toLowerCase();
@@ -4037,14 +4036,15 @@ function buildRemovedActionSelect(code, currentVal){
 
 function onActionSelectChange(sel){
   const code = sel.getAttribute('data-code');
+  const month = selectedMonth||allMonths[0];
   if(sel.value === ADD_CUSTOM_VALUE){
     const newOpt = prompt('Enter a new action / bucket name:');
     if(newOpt && newOpt.trim()){
       const trimmed = newOpt.trim();
       if(!wfActionOptions.includes(trimmed)) wfActionOptions.push(trimmed);
-      wfActions[code] = trimmed;
-    } else { wfActions[code] = wfActions[code]||''; }
-  } else { wfActions[code] = sel.value; }
+      setAction(code, month, trimmed);
+    } else { setAction(code, month, getAction(code, month)); }
+  } else { setAction(code, month, sel.value); }
   autoSave();
   renderWorkforce();
   if(document.getElementById('tab-missing').classList.contains('active')) renderMissingTable();
@@ -4061,11 +4061,11 @@ function onRemovedActionChange(sel){
       const trimmed = newOpt.trim();
       if(!wfActionOptions.includes(trimmed)) wfActionOptions.push(trimmed);
       removed.removeAction = trimmed;
-      wfActions[code] = trimmed;
+      setAction(code, month, trimmed);
     } else { removed.removeAction = removed.removeAction||''; }
   } else {
     removed.removeAction = sel.value;
-    wfActions[code] = sel.value;
+    setAction(code, month, sel.value);
   }
   autoSave();
   renderMissingTable();
