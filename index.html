@@ -530,8 +530,10 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <button class="tab active" id="wfsub-all" onclick="setWfSubFilter('all')">All</button>
     <button class="tab" id="wfsub-ramping" onclick="setWfSubFilter('ramping')">Ramping</button>
     <button class="tab" id="wfsub-benched" onclick="setWfSubFilter('benched')">Benched</button>
+    <button class="tab" id="wfsub-actions" onclick="setWfSubFilter('actions')">Actions</button>
   </div>
 
+    <div id="wfNormalView">
     <div class="wf-grid">
       <div class="wf-card">
         <div class="wf-card-title">By practice</div>
@@ -605,6 +607,26 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
         </tr></thead>
         <tbody id="wf-combined-body"></tbody>
       </table></div>
+    </div>
+    </div>
+
+    <div id="wfActionsPivotView" style="display:none">
+      <div class="wf-card">
+        <div class="wf-card-title" style="display:flex;align-items:center;justify-content:space-between;padding-right:10px;flex-wrap:wrap;gap:6px">
+          <span>Actions across months</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="wfActionsPivotSearch" placeholder="Search name or code…" oninput="renderWfActionsPivot()">
+            </div>
+            <button class="export-btn" onclick="exportWfActionsPivot()">⬇ Export Excel</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead id="wfActionsPivotHead"></thead>
+          <tbody id="wfActionsPivotBody"></tbody>
+        </table></div>
+      </div>
     </div>
   </div>
 
@@ -3378,7 +3400,7 @@ function setWfFilter(f){
 
 function setWfSubFilter(f){
   wfSubFilter = f;
-  ['all','ramping','benched'].forEach(k=>{
+  ['all','ramping','benched','actions'].forEach(k=>{
     const btn = document.getElementById('wfsub-'+k);
     if(btn) btn.classList.toggle('active', k===f);
   });
@@ -3497,6 +3519,11 @@ function getSeniority(emp){
 }
 
 function renderWorkforce(){
+  const showActionsPivot = wfSubFilter==='actions';
+  document.getElementById('wfNormalView').style.display = showActionsPivot ? 'none' : '';
+  document.getElementById('wfActionsPivotView').style.display = showActionsPivot ? '' : 'none';
+  if(showActionsPivot){ renderWfActionsPivot(); return; }
+
   const emps = getWfEmps();
   const month = selectedMonth||allMonths[0];
 
@@ -3813,6 +3840,59 @@ function renderWfTables(emps){
 
   wfSortIcons('wfc-s', sortState, 7);
   setTimeout(()=>{ initWfResizers('wfCombinedTable'); }, 0);
+}
+
+// Actions across months — one row per resource (any resource with at least one action
+// assigned, in any month), one column per month in allMonths, showing that month's action.
+function buildWfActionsPivotData(){
+  const q = (document.getElementById('wfActionsPivotSearch')?.value||'').toLowerCase();
+  const codeMap = {}; // code -> {name, practice, byMonth:{month:action}}
+  allMonths.forEach(m=>{
+    filtEmps(employeesByMonth[m]||[], sharedFilter).forEach(e=>{
+      if(!codeMap[e.code]) codeMap[e.code] = {name:e.name, practice:e.practice, byMonth:{}};
+      const a = getAction(e.code, m);
+      if(a) codeMap[e.code].byMonth[m] = a;
+      // Keep most recent name/practice seen
+      codeMap[e.code].name = e.name; codeMap[e.code].practice = e.practice;
+    });
+  });
+  return Object.entries(codeMap)
+    .filter(([code,info])=>Object.keys(info.byMonth).length>0)
+    .filter(([code,info])=>!q || info.name.toLowerCase().includes(q) || code.toLowerCase().includes(q))
+    .sort((a,b)=>a[1].name.localeCompare(b[1].name));
+}
+
+function renderWfActionsPivot(){
+  const rows = buildWfActionsPivotData();
+  document.getElementById('wfActionsPivotHead').innerHTML = `<tr style="background:var(--bg2)">
+    <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Code</th>
+    <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Name</th>
+    <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">Practice</th>
+    ${allMonths.map(m=>`<th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid var(--border);font-size:10px;text-transform:uppercase">${m}</th>`).join('')}
+  </tr>`;
+  document.getElementById('wfActionsPivotBody').innerHTML = rows.length===0
+    ? `<tr><td colspan="${3+allMonths.length}" class="empty">No resources with an action assigned</td></tr>`
+    : rows.map(([code,info])=>{
+        const cells = allMonths.map(m=>{
+          const a = info.byMonth[m];
+          return `<td style="padding:5px 10px">${a?`<span style="font-size:10px;background:var(--bg3);color:var(--text2);padding:2px 8px;border-radius:4px">${a}</span>`:'<span style="color:var(--text3)">—</span>'}</td>`;
+        }).join('');
+        return `<tr style="border-top:0.5px solid var(--border)">
+          <td style="padding:5px 10px;font-family:monospace;font-size:10px;color:var(--text2)">${code}</td>
+          <td style="padding:5px 10px;font-weight:500">${info.name}</td>
+          <td style="padding:5px 10px;color:var(--text2)">${info.practice}</td>
+          ${cells}
+        </tr>`;
+      }).join('');
+}
+
+function exportWfActionsPivot(){
+  const rows = buildWfActionsPivotData();
+  xlsxExport(rows.map(([code,info])=>{
+    const row = {'Employee Code':code, 'Employee Name':info.name, 'Practice':info.practice};
+    allMonths.forEach(m=>{ row[m] = info.byMonth[m]||''; });
+    return row;
+  }), 'Actions', 'Workforce-Actions-Across-Months');
 }
 
 function exportWfTable(){
