@@ -1715,8 +1715,8 @@ function renderBillTable(){
   const dupPairs = emps.filter(e=>dupPartner[e.code]).length/2;
   const dupUniqueCount = emps.length - dupPairs; // each pair counts as 1, not 2
   document.getElementById('billCount').textContent = dupPairs>0
-    ? `${emps.length} resources (${dupUniqueCount} unique, ${dupPairs} duplicate pair${dupPairs>1?'s':''})`
-    : `${emps.length} resources`;
+    ? `${emps.length} Entry (${dupUniqueCount} Resource, ${dupPairs} duplicate Resource${dupPairs>1?'s':''})`
+    : `${emps.length} Entry`;
 
   document.getElementById('billBody').innerHTML=emps.length===0
     ?'<tr><td colspan="16" class="empty">No resources found</td></tr>'
@@ -2129,7 +2129,8 @@ function renderCompare(){
     const emps=filtEmps(employeesByMonth[month]||[], sharedFilter);
     let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
     emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
-    return{resources:emps.length,bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
+    const dupPairsThisMonth = findMasterListDuplicatePairs(emps).length;
+    return{resources:emps.length-dupPairsThisMonth,bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
   }
   const overalls=compMonths.map(m=>({month:m,...monthOverall(m)}));
 
