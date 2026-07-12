@@ -358,7 +358,6 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
   <div class="tabs">
     <button class="tab active" onclick="switchTab('bill')">Billability summary</button>
     <button class="tab" onclick="switchTab('practice')">Practice summary</button>
-    <button class="tab" onclick="switchTab('below')">Below 70%</button>
     <button class="tab" onclick="switchTab('missing')">Missing resources <span id="missingBadge" style="font-size:10px;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:99px;margin-left:4px"></span></button>
     <button class="tab" onclick="switchTab('compare')">Months comparison</button>
     <button class="tab" onclick="switchTab('workforce')" style="background:var(--blue-bg);color:var(--blue);font-weight:500">🏢 Workforce</button>
@@ -463,64 +462,6 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     </div></div>
   </div>
 
-  <!-- Below 70% -->
-  <div class="tab-panel" id="tab-below">
-    <div class="sec-header">
-      <span class="sec-title">Resources below 70% billability</span>
-      <div class="controls">
-        <span class="sec-meta" id="belowCount"></span>
-        <div class="search-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="belowSearch" placeholder="Search name or code…" oninput="searchBelow=this.value;renderBelowTable()">
-        </div>
-        <div class="col-toggle-wrap">
-          <button class="col-toggle-btn" onclick="toggleBelowColDropdown()">⊞ Columns</button>
-          <div class="col-toggle-dropdown" id="belowColToggleDrop">
-            <div class="col-toggle-actions">
-              <button class="col-toggle-act" onclick="showAllBelowCols()">Show all</button>
-              <button class="col-toggle-act" onclick="resetBelowCols()">Reset</button>
-            </div>
-            <div class="col-toggle-divider"></div>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-code" checked onchange="applyBelowColVisibility()"> Code</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-name" checked onchange="applyBelowColVisibility()"> Name</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-practice" checked onchange="applyBelowColVisibility()"> Practice</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-country" checked onchange="applyBelowColVisibility()"> Country</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-cost" checked onchange="applyBelowColVisibility()"> Monthly Cost</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-billmd" checked onchange="applyBelowColVisibility()"> Billable MD</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-nonbillmd" checked onchange="applyBelowColVisibility()"> Non-Billable MD</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-intmd" checked onchange="applyBelowColVisibility()"> Int. Projects MD</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-totalmd" checked onchange="applyBelowColVisibility()"> Total MD</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-billpct" checked onchange="applyBelowColVisibility()"> Billability %</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-utilpct" checked onchange="applyBelowColVisibility()"> Utilization %</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-status" checked onchange="applyBelowColVisibility()"> Status</label>
-            <label class="col-toggle-item"><input type="checkbox" id="bcol-actnames" checked onchange="applyBelowColVisibility()"> Activity Names</label>
-          </div>
-        </div>
-        <button class="export-btn" onclick="exportBelowTable()">⬇ Export Excel</button>
-      </div>
-    </div>
-    <div class="tcard"><div class="tscroll">
-      <table>
-        <thead><tr>
-          <th class="sortable" onclick="sortBelow(0)" data-bcol="num"># <span class="sort-icon" id="bw0">↕</span></th>
-          <th class="sortable" onclick="sortBelow(1)" data-bcol="code">Code <span class="sort-icon" id="bw1">↕</span></th>
-          <th class="sortable" onclick="sortBelow(2)" data-bcol="name">Name <span class="sort-icon" id="bw2">↕</span></th>
-          <th class="sortable" onclick="sortBelow(3)" data-bcol="practice">Practice <span class="sort-icon" id="bw3">↕</span></th>
-          <th class="sortable" onclick="sortBelow(4)" data-bcol="country">Country <span class="sort-icon" id="bw4">↕</span></th>
-          <th class="sortable" onclick="sortBelow(5)" data-bcol="cost">Monthly cost <span class="sort-icon" id="bw5">↕</span></th>
-          <th class="sortable" onclick="sortBelow(6)" data-bcol="billmd">Billable MD <span class="sort-icon" id="bw6">↕</span></th>
-          <th data-bcol="nonbillmd">Non-billable MD</th>
-          <th data-bcol="intmd">Int. projects MD</th>
-          <th class="sortable" onclick="sortBelow(7)" data-bcol="totalmd">Total MD <span class="sort-icon" id="bw7">↕</span></th>
-          <th class="sortable" onclick="sortBelow(8)" data-bcol="billpct">Billability % <span class="sort-icon" id="bw8">↕</span></th>
-          <th class="sortable" onclick="sortBelow(9)" data-bcol="utilpct">Utilization % <span class="sort-icon" id="bw9">↕</span></th>
-          <th class="sortable" onclick="sortBelow(10)" data-bcol="status">Status <span class="sort-icon" id="bw10">↕</span></th>
-          <th data-bcol="actnames">Activity names</th>
-        </tr></thead>
-        <tbody id="belowBody"></tbody>
-      </table>
-    </div></div>
-  </div>
 
   <!-- TAB: Workforce -->
   <div class="tab-panel" id="tab-workforce">
@@ -874,6 +815,12 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
         <button class="export-btn" onclick="exportCompareTable()">⬇ Export Excel</button>
       </div>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:500;color:var(--text2)">From:</span>
+      <select id="compFromMonth" onchange="renderCompare()" style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--bg)"></select>
+      <span style="font-size:12px;font-weight:500;color:var(--text2)">To:</span>
+      <select id="compToMonth" onchange="renderCompare()" style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--bg)"></select>
+    </div>
     <div class="comp-kpi-grid" id="compKpiGrid"></div>
     <div class="charts-row">
       <div class="chart-card">
@@ -1031,7 +978,7 @@ function selectMonth(month){
   if(document.getElementById('tab-workforce').classList.contains('active')) renderWorkforce();
 }
 function switchTab(name){
-  const names=['bill','practice','below','missing','compare','workforce','wfcompare','costanalysis','teamoverview'];
+  const names=['bill','practice','missing','compare','workforce','wfcompare','costanalysis','teamoverview'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
@@ -1042,7 +989,7 @@ function switchTab(name){
   if(wfKpiGrid) wfKpiGrid.style.display = name==='workforce' ? 'grid' : 'none';
   updateKPIs();
   if(name==='practice') setTimeout(drawPracticeCharts,50);
-  if(name==='compare') setTimeout(renderCompare,50);
+  if(name==='compare'){ initCompMonthDropdowns(); setTimeout(renderCompare,50); }
   if(name==='workforce') setTimeout(renderWorkforce,50);
   if(name==='wfcompare') setTimeout(renderWfCompare,50);
   if(name==='costanalysis'){
@@ -1691,6 +1638,7 @@ function initDashboard(){
   }
   initCostMonthDropdowns();
   initWfMonthDropdowns();
+  initCompMonthDropdowns();
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
 
@@ -2002,6 +1950,7 @@ function drawPracticeCharts(){
 // ── Below 70% ──────────────────────────────────────────────────────────────
 function sortBelow(col){if(_resizeDragging)return;if(belowSort.col===col)belowSort.asc=!belowSort.asc;else{belowSort.col=col;belowSort.asc=true;}renderBelowTable();}
 function renderBelowTable(){
+  if(!document.getElementById('belowBody')) return; // Below 70% tab removed
   sortIcons('bw',belowSort.col,belowSort.asc,11);
   const bq=(searchBelow||'').toLowerCase();
   let list=filtEmps(currentEmps(),sharedFilter).map((emp,i)=>({emp,idx:i,...calc(emp)})).filter(x=>x.bpct<0.70).filter(x=>!bq||(x.emp.name.toLowerCase().includes(bq)||x.emp.code.toLowerCase().includes(bq)));
@@ -2153,10 +2102,11 @@ function renderMissingTable(){
 
 // ── Month Comparison ───────────────────────────────────────────────────────
 function renderCompare(){
-  if(allMonths.length<1)return;
+  const compMonths = getCompMonths();
+  if(compMonths.length<1)return;
 
-  // Get all practices across all months filtered
-  const allPracticesComp=[...new Set(allMonths.flatMap(m=>filtEmps(employeesByMonth[m]||[], sharedFilter).map(e=>e.practice)))].sort();
+  // Get all practices across the selected months, filtered
+  const allPracticesComp=[...new Set(compMonths.flatMap(m=>filtEmps(employeesByMonth[m]||[], sharedFilter).map(e=>e.practice)))].sort();
 
   // Per-month practice stats
   function monthPracticeStats(month){
@@ -2172,7 +2122,7 @@ function renderCompare(){
     return pmap;
   }
 
-  const statsByMonth=allMonths.map(m=>({month:m,...monthPracticeStats(m)}));
+  const statsByMonth=compMonths.map(m=>({month:m,...monthPracticeStats(m)}));
 
   // ── KPI cards (overall per month) ──
   function monthOverall(month){
@@ -2181,7 +2131,7 @@ function renderCompare(){
     emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
     return{resources:emps.length,bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
   }
-  const overalls=allMonths.map(m=>({month:m,...monthOverall(m)}));
+  const overalls=compMonths.map(m=>({month:m,...monthOverall(m)}));
 
   const kpiDefs=[
     {label:'Billability %',fn:o=>o.bpct>0?pct(o.bpct):'—',color:o=>o.bpct>=.75?'var(--green)':o.bpct>=.70?'var(--amber)':'var(--red)'},
@@ -2214,7 +2164,7 @@ function renderCompare(){
   // ── Charts ──
   const billLegend=document.getElementById('compBillLegend');
   const utilLegend=document.getElementById('compUtilLegend');
-  billLegend.innerHTML=utilLegend.innerHTML=allMonths.map((m,i)=>`<div class="leg-item"><div class="leg-dot" style="background:${MONTH_COLORS[i%MONTH_COLORS.length]}"></div>${m}</div>`).join('');
+  billLegend.innerHTML=utilLegend.innerHTML=compMonths.map((m,i)=>`<div class="leg-item"><div class="leg-dot" style="background:${MONTH_COLORS[i%MONTH_COLORS.length]}"></div>${m}</div>`).join('');
 
   const labels=allPracticesComp.map(p=>p.length>12?p.slice(0,12)+'…':p);
 
@@ -2263,7 +2213,7 @@ function renderCompare(){
 
   compChartBillInst=new Chart(document.getElementById('compChartBill'),{
     type:'bar',
-    data:{labels,datasets:allMonths.map((m,i)=>({
+    data:{labels,datasets:compMonths.map((m,i)=>({
       label:m,borderRadius:2,
       backgroundColor:MONTH_COLORS[i%MONTH_COLORS.length],
       data:allPracticesComp.map(p=>{const s=statsByMonth[i][p];return s&&s.tc>0?+(s.bc/s.tc*100).toFixed(1):0;})
@@ -2273,7 +2223,7 @@ function renderCompare(){
 
   compChartUtilInst=new Chart(document.getElementById('compChartUtil'),{
     type:'bar',
-    data:{labels,datasets:allMonths.map((m,i)=>({
+    data:{labels,datasets:compMonths.map((m,i)=>({
       label:m,borderRadius:2,
       backgroundColor:MONTH_COLORS[i%MONTH_COLORS.length],
       data:allPracticesComp.map(p=>{const s=statsByMonth[i][p];const tot=(s?.bMD||0)+(s?.nbMD||0)+(s?.ipMD||0);return s&&tot>0?+((s.bMD+s.ipMD)/tot*100).toFixed(1):0;})
@@ -2283,7 +2233,7 @@ function renderCompare(){
 
   // ── Combined Bar+Line chart ──
   const combinedLegend = document.getElementById('compCombinedLegend');
-  combinedLegend.innerHTML = allMonths.map((m,i)=>`
+  combinedLegend.innerHTML = compMonths.map((m,i)=>`
     <div class="leg-item">
       <span class="leg-dot" style="background:${MONTH_COLORS[i%MONTH_COLORS.length]}"></span>${m} Bill%
     </div>
@@ -2295,7 +2245,7 @@ function renderCompare(){
 
   const combinedDatasets = [];
   // Bars for Billability %
-  allMonths.forEach((m,i)=>{
+  compMonths.forEach((m,i)=>{
     combinedDatasets.push({
       type:'bar', label:`${m} Bill%`,
       data: allPracticesComp.map(p=>{const s=statsByMonth[i][p]; return s&&s.tc>0?+(s.bc/s.tc*100).toFixed(1):0;}),
@@ -2305,7 +2255,7 @@ function renderCompare(){
     });
   });
   // Lines for Utilization %
-  allMonths.forEach((m,i)=>{
+  compMonths.forEach((m,i)=>{
     combinedDatasets.push({
       type:'line', label:`${m} Util%`,
       data: allPracticesComp.map(p=>{const s=statsByMonth[i][p]; const tot=(s?.bMD||0)+(s?.nbMD||0)+(s?.ipMD||0); return s&&tot>0?+((s.bMD+s.ipMD)/tot*100).toFixed(1):0;}),
@@ -2356,12 +2306,12 @@ function renderCompare(){
   document.getElementById('compTableHead').innerHTML=`
     <tr>
       <th rowspan="2" style="vertical-align:bottom">Practice</th>
-      ${allMonths.map(m=>`<th colspan="${colsPerMonth}" class="center bl" style="border-bottom:0.5px solid var(--border)">${m}</th>`).join('')}
-      ${allMonths.length>=2?`<th colspan="2" class="center bl" style="border-bottom:0.5px solid var(--border)">Change (${allMonths[0]} → ${allMonths[allMonths.length-1]})</th>`:''}
+      ${compMonths.map(m=>`<th colspan="${colsPerMonth}" class="center bl" style="border-bottom:0.5px solid var(--border)">${m}</th>`).join('')}
+      ${compMonths.length>=2?`<th colspan="2" class="center bl" style="border-bottom:0.5px solid var(--border)">Change (${compMonths[0]} → ${compMonths[compMonths.length-1]})</th>`:''}
     </tr>
     <tr>
-      ${allMonths.map(()=>`<th class="center bl">Resources</th><th class="center">Bill%</th><th class="center">Util%</th>`).join('')}
-      ${allMonths.length>=2?`<th class="center bl">Bill%</th><th class="center">Util%</th>`:''}
+      ${compMonths.map(()=>`<th class="center bl">Resources</th><th class="center">Bill%</th><th class="center">Util%</th>`).join('')}
+      ${compMonths.length>=2?`<th class="center bl">Bill%</th><th class="center">Util%</th>`:''}
     </tr>`;
 
   document.getElementById('compTableBody').innerHTML=allPracticesComp.map(p=>{
@@ -2373,7 +2323,7 @@ function renderCompare(){
       return`<td class="center bl">${s?s.codes.size:0}</td><td class="center">${s?pillPct(bp):'—'}</td><td class="center">${s?pillPct(up):'—'}</td>`;
     }).join('');
     let changeCell='';
-    if(allMonths.length>=2){
+    if(compMonths.length>=2){
       const first=mStats[0],last=mStats[mStats.length-1];
       const bp1=first&&first.tc>0?first.bc/first.tc:0;
       const bp2=last&&last.tc>0?last.bc/last.tc:0;
@@ -2390,7 +2340,7 @@ function renderCompare(){
   }).join('');
 
   // Footer totals
-  const footCells=allMonths.map(m=>{
+  const footCells=compMonths.map(m=>{
     const emps=filtEmps(employeesByMonth[m]||[], sharedFilter);
     let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
     emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
@@ -2398,9 +2348,9 @@ function renderCompare(){
     return`<td class="center bl">${emps.length}</td><td class="center">${pillPct(bp)}</td><td class="center">${pillPct(up)}</td>`;
   }).join('');
   let footChange='';
-  if(allMonths.length>=2){
+  if(compMonths.length>=2){
     const getO=m=>{const emps=filtEmps(employeesByMonth[m]||[], sharedFilter);let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});return{bp:tTC>0?tBC/tTC:0,up:tMD>0?(tBMD+tIPMD)/tMD:0};};
-    const o1=getO(allMonths[0]),o2=getO(allMonths[allMonths.length-1]);
+    const o1=getO(compMonths[0]),o2=getO(compMonths[compMonths.length-1]);
     const dbp=isNaN(o2.bp-o1.bp)?0:(o2.bp-o1.bp)*100;
     const dup=isNaN(o2.up-o1.up)?0:(o2.up-o1.up)*100;
     const trend=(d)=>d>0?`<span class="trend-up">▲ +${Math.abs(d).toFixed(1)}%</span>`:d<0?`<span class="trend-down">▼ ${d.toFixed(1)}%</span>`:`<span class="trend-same">— 0.0%</span>`;
@@ -2888,6 +2838,7 @@ function loadState(){
 
     initCostMonthDropdowns();
     initWfMonthDropdowns();
+    initCompMonthDropdowns();
     updateKPIs(); renderBillTable(); renderPracticeTable(); renderBelowTable(); renderMissingTable();
     setTimeout(()=>{
       drawPracticeCharts(); initResizer();
@@ -3185,10 +3136,11 @@ function exportRemovedTable(){
 }
 
 function exportCompareTable(){
-  const allP=[...new Set(allMonths.flatMap(m=>(employeesByMonth[m]||[]).map(e=>normP(e.practice))))].sort();
+  const compMonths = getCompMonths();
+  const allP=[...new Set(compMonths.flatMap(m=>(employeesByMonth[m]||[]).map(e=>normP(e.practice))))].sort();
   const rows=allP.map(p=>{
     const row={'Practice':p};
-    allMonths.forEach(m=>{
+    compMonths.forEach(m=>{
       const emps=filtEmps(employeesByMonth[m]||[],sharedFilter).filter(e=>normP(e.practice)===p);
       let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
       emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
@@ -3198,7 +3150,7 @@ function exportCompareTable(){
     });
     return row;
   });
-  xlsxExport(rows,'Month Comparison',`Month-Comparison-${allMonths.join('-vs-')}`);
+  xlsxExport(rows,'Month Comparison',`Month-Comparison-${compMonths.join('-vs-')}`);
 }
 
 // ── Edit Removed Action/Notes inline ─────────────────────────────────────────
@@ -4740,6 +4692,31 @@ function getWfMonths(){
   const allM=getAllYearMonths();
   const from=document.getElementById('wfFromMonth')?.value||allM[0];
   const to=document.getElementById('wfToMonth')?.value||allM[allM.length-1];
+  return allM.filter(m=>m>=from&&m<=to);
+}
+
+function initCompMonthDropdowns(){
+  const allM=getAllYearMonths();
+  const now=new Date();
+  const curMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const qStart=allM[Math.floor(now.getMonth()/3)*3];
+  ['compFromMonth','compToMonth'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const prev=sel.value;
+    sel.innerHTML=allM.map(m=>`<option value="${m}">${m}</option>`).join('');
+    sel.value=prev||'';
+  });
+  const f=document.getElementById('compFromMonth');
+  const t=document.getElementById('compToMonth');
+  if(f&&!f.value) f.value=qStart;
+  if(t&&!t.value) t.value=curMonth;
+}
+
+function getCompMonths(){
+  const allM=getAllYearMonths();
+  const from=document.getElementById('compFromMonth')?.value||allM[0];
+  const to=document.getElementById('compToMonth')?.value||allM[allM.length-1];
   return allM.filter(m=>m>=from&&m<=to);
 }
 
