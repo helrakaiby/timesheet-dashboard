@@ -4582,11 +4582,23 @@ function renderManageActionsList(){
   list.innerHTML = wfActionOptions.map((opt,i)=>`
     <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">
       <span>${opt}</span>
-      <button onclick="removeActionOption(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 6px;border-radius:4px"
-        onmouseover="this.style.color='var(--red)';this.style.background='var(--red-bg)'"
-        onmouseout="this.style.color='var(--text3)';this.style.background='none'"
-        title="Remove this action">✕</button>
+      <div style="display:flex;align-items:center;gap:2px">
+        <button onclick="moveActionOption(${i},-1)" ${i===0?'disabled':''} style="background:none;border:none;cursor:${i===0?'default':'pointer'};color:${i===0?'var(--text3)':'var(--text2)'};font-size:13px;padding:2px 6px;border-radius:4px" title="Move up">↑</button>
+        <button onclick="moveActionOption(${i},1)" ${i===wfActionOptions.length-1?'disabled':''} style="background:none;border:none;cursor:${i===wfActionOptions.length-1?'default':'pointer'};color:${i===wfActionOptions.length-1?'var(--text3)':'var(--text2)'};font-size:13px;padding:2px 6px;border-radius:4px" title="Move down">↓</button>
+        <button onclick="removeActionOption(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 6px;border-radius:4px;margin-left:4px"
+          onmouseover="this.style.color='var(--red)';this.style.background='var(--red-bg)'"
+          onmouseout="this.style.color='var(--text3)';this.style.background='none'"
+          title="Remove this action">✕</button>
+      </div>
     </div>`).join('');
+}
+
+function moveActionOption(idx, direction){
+  const newIdx = idx + direction;
+  if(newIdx<0 || newIdx>=wfActionOptions.length) return;
+  [wfActionOptions[idx], wfActionOptions[newIdx]] = [wfActionOptions[newIdx], wfActionOptions[idx]];
+  autoSave();
+  renderManageActionsList();
 }
 
 function removeActionOption(idx){
