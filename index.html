@@ -573,6 +573,12 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
 
   <!-- TAB: Workforce Comparison -->
   <div class="tab-panel" id="tab-wfcompare">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:500;color:var(--text2)">From:</span>
+      <select id="wfCompFromMonth" onchange="renderWfCompare()" style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--bg)"></select>
+      <span style="font-size:12px;font-weight:500;color:var(--text2)">To:</span>
+      <select id="wfCompToMonth" onchange="renderWfCompare()" style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--bg)"></select>
+    </div>
     <div class="comp-kpi-grid" id="wfCompKpiGrid"></div>
 
     <div class="charts-row">
@@ -991,7 +997,7 @@ function switchTab(name){
   if(name==='practice') setTimeout(drawPracticeCharts,50);
   if(name==='compare'){ initCompMonthDropdowns(); setTimeout(renderCompare,50); }
   if(name==='workforce') setTimeout(renderWorkforce,50);
-  if(name==='wfcompare') setTimeout(renderWfCompare,50);
+  if(name==='wfcompare'){ initWfCompMonthDropdowns(); setTimeout(renderWfCompare,50); }
   if(name==='costanalysis'){
     initCostMonthDropdowns();
     setTimeout(()=>{renderCostAnalysis();initCostResizers();},50);
@@ -1658,6 +1664,7 @@ function initDashboard(){
   initCostMonthDropdowns();
   initWfMonthDropdowns();
   initCompMonthDropdowns();
+  initWfCompMonthDropdowns();
   const tdbw=document.getElementById('teamDataBtnWrap');
   if(tdbw)tdbw.style.display='flex';
 
@@ -2859,6 +2866,7 @@ function loadState(){
     initCostMonthDropdowns();
     initWfMonthDropdowns();
     initCompMonthDropdowns();
+    initWfCompMonthDropdowns();
     updateKPIs(); renderBillTable(); renderPracticeTable(); renderBelowTable(); renderMissingTable();
     setTimeout(()=>{
       drawPracticeCharts(); initResizer();
@@ -3972,8 +3980,9 @@ function getWfMonthStats(month){
 }
 
 function renderWfCompare(){
-  if(allMonths.length<1) return;
-  const statsByMonth = allMonths.map(m=>getWfMonthStats(m));
+  const wfCompMonths = getWfCompMonths();
+  if(wfCompMonths.length<1) return;
+  const statsByMonth = wfCompMonths.map(m=>getWfMonthStats(m));
 
   // KPI cards
   const kpiDefs=[
@@ -3997,9 +4006,9 @@ function renderWfCompare(){
   if(wfCompBenchChartInst){wfCompBenchChartInst.destroy();wfCompBenchChartInst=null;}
   wfCompBenchChartInst = new Chart(document.getElementById('wfCompBenchChart'),{
     type:'bar',
-    data:{labels:allMonths, datasets:[{
+    data:{labels:wfCompMonths, datasets:[{
       data:statsByMonth.map(s=>s.benched.length),
-      backgroundColor:allMonths.map((_,i)=>MONTH_COLORS[i%MONTH_COLORS.length]),
+      backgroundColor:wfCompMonths.map((_,i)=>MONTH_COLORS[i%MONTH_COLORS.length]),
       borderRadius:4
     }]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
@@ -4034,7 +4043,7 @@ function renderWfCompare(){
   }};
   wfCompShoreChartInst = new Chart(document.getElementById('wfCompShoreChart'),{
     type:'bar',
-    data:{labels:allMonths, datasets:[
+    data:{labels:wfCompMonths, datasets:[
       {label:'Offshore', data:statsByMonth.map(s=>s.offBench.length), backgroundColor:'#185FA5', borderRadius:4},
       {label:'Onshore',  data:statsByMonth.map(s=>s.onBench.length),  backgroundColor:'#639922', borderRadius:4}
     ]},
@@ -4045,14 +4054,14 @@ function renderWfCompare(){
 
   // By Practice benched chart — one dataset per month
   const allPracs = [...new Set(statsByMonth.flatMap(s=>s.benched.map(e=>normP(e.practice))))].sort();
-  document.getElementById('wfCompPracLegend').innerHTML = allMonths.map((m,i)=>
+  document.getElementById('wfCompPracLegend').innerHTML = wfCompMonths.map((m,i)=>
     `<div class="leg-item"><span class="leg-dot" style="background:${MONTH_COLORS[i%MONTH_COLORS.length]}"></span>${m}</div>`).join('');
   if(wfCompPracChartInst){wfCompPracChartInst.destroy();wfCompPracChartInst=null;}
   wfCompPracChartInst = new Chart(document.getElementById('wfCompPracChart'),{
     type:'bar',
     data:{
       labels:allPracs.map(p=>p.length>14?p.slice(0,14)+'…':p),
-      datasets: allMonths.map((m,i)=>({
+      datasets: wfCompMonths.map((m,i)=>({
         label:m,
         data: allPracs.map(p=>statsByMonth[i].benched.filter(e=>normP(e.practice)===p).length),
         backgroundColor: MONTH_COLORS[i%MONTH_COLORS.length],
@@ -4065,7 +4074,7 @@ function renderWfCompare(){
   });
 
   // Resolution tracking table — first month vs last month per person
-  const firstMonth = allMonths[0], lastMonth = allMonths[allMonths.length-1];
+  const firstMonth = wfCompMonths[0], lastMonth = wfCompMonths[wfCompMonths.length-1];
   const firstStats = statsByMonth[0], lastStats = statsByMonth[statsByMonth.length-1];
   // Build map of code -> status per month (using all months, not just first/last)
   const codeMap = {};
@@ -4088,15 +4097,15 @@ function renderWfCompare(){
 
   document.getElementById('wfCompTableHead').innerHTML = `<tr>
     <th>Code</th><th>Name</th><th>Practice</th>
-    ${allMonths.map(m=>`<th class="center bl">${m}</th>`).join('')}
+    ${wfCompMonths.map(m=>`<th class="center bl">${m}</th>`).join('')}
     <th class="bl">Action</th>
   </tr>`;
 
   document.getElementById('wfCompTableBody').innerHTML = trackedCodes.length===0
-    ? `<tr><td colspan="${2+allMonths.length+1}" class="empty">No benched or ramping resources found</td></tr>`
+    ? `<tr><td colspan="${2+wfCompMonths.length+1}" class="empty">No benched or ramping resources found</td></tr>`
     : trackedCodes.map(code=>{
         const info = codeMap[code];
-        const cells = allMonths.map(m=>{
+        const cells = wfCompMonths.map(m=>{
           const s = info.statuses[m] || '—';
           const color = s.startsWith('Benched') ? 'var(--red)' : s.startsWith('Ramping') ? 'var(--amber)' : s.startsWith('On target') ? 'var(--green)' : 'var(--text3)';
           return `<td class="center bl" style="color:${color};font-weight:500">${s}</td>`;
@@ -4106,7 +4115,8 @@ function renderWfCompare(){
 }
 
 function exportWfCompareTable(){
-  const statsByMonth = allMonths.map(m=>getWfMonthStats(m));
+  const wfCompMonths = getWfCompMonths();
+  const statsByMonth = wfCompMonths.map(m=>getWfMonthStats(m));
   const codeMap = {};
   statsByMonth.forEach(s=>{
     s.emps.forEach(e=>{
@@ -4126,11 +4136,11 @@ function exportWfCompareTable(){
   const rows = trackedCodes.map(code=>{
     const info = codeMap[code];
     const row = {'Name':info.name, 'Practice':info.practice};
-    allMonths.forEach(m=>{row[m]=info.statuses[m]||'—';});
+    wfCompMonths.forEach(m=>{row[m]=info.statuses[m]||'—';});
     row['Action']=info.action||'';
     return row;
   });
-  xlsxExport(rows,'Workforce Comparison',`Workforce-Comparison-${allMonths.join('-vs-')}`);
+  xlsxExport(rows,'Workforce Comparison',`Workforce-Comparison-${wfCompMonths.join('-vs-')}`);
 }
 
 // ── Unified Action Functions ──────────────────────────────────────────────────
@@ -4675,11 +4685,18 @@ function getAllYearMonths(){
   return ['01','02','03','04','05','06','07','08','09','10','11','12'].map(m=>`${year}-${m}`);
 }
 
+// Default range = the last 3 months that actually have data, not a calendar-quarter guess —
+// this is reliable regardless of what today's real-world date happens to be.
+function getDefault3MonthRange(){
+  if(!allMonths.length) return {from:'',to:''};
+  const to = allMonths[allMonths.length-1];
+  const from = allMonths[Math.max(0, allMonths.length-3)];
+  return {from, to};
+}
+
 function initCostMonthDropdowns(){
   const allM=getAllYearMonths();
-  const now=new Date();
-  const curMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const qStart=allM[Math.floor(now.getMonth()/3)*3];
+  const {from:defFrom,to:defTo}=getDefault3MonthRange();
   ['costFromMonth','costToMonth'].forEach(id=>{
     const sel=document.getElementById(id);
     if(!sel) return;
@@ -4689,8 +4706,8 @@ function initCostMonthDropdowns(){
   });
   const f=document.getElementById('costFromMonth');
   const t=document.getElementById('costToMonth');
-  if(f&&!f.value) f.value=qStart;
-  if(t&&!t.value) t.value=curMonth;
+  if(f&&!f.value) f.value=defFrom;
+  if(t&&!t.value) t.value=defTo;
 }
 
 function getCostMonths(){
@@ -4702,9 +4719,7 @@ function getCostMonths(){
 
 function initWfMonthDropdowns(){
   const allM=getAllYearMonths();
-  const now=new Date();
-  const curMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const qStart=allM[Math.floor(now.getMonth()/3)*3];
+  const {from:defFrom,to:defTo}=getDefault3MonthRange();
   ['wfFromMonth','wfToMonth'].forEach(id=>{
     const sel=document.getElementById(id);
     if(!sel) return;
@@ -4714,8 +4729,8 @@ function initWfMonthDropdowns(){
   });
   const f=document.getElementById('wfFromMonth');
   const t=document.getElementById('wfToMonth');
-  if(f&&!f.value) f.value=qStart;
-  if(t&&!t.value) t.value=curMonth;
+  if(f&&!f.value) f.value=defFrom;
+  if(t&&!t.value) t.value=defTo;
 }
 
 function getWfMonths(){
@@ -4727,9 +4742,7 @@ function getWfMonths(){
 
 function initCompMonthDropdowns(){
   const allM=getAllYearMonths();
-  const now=new Date();
-  const curMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const qStart=allM[Math.floor(now.getMonth()/3)*3];
+  const {from:defFrom,to:defTo}=getDefault3MonthRange();
   ['compFromMonth','compToMonth'].forEach(id=>{
     const sel=document.getElementById(id);
     if(!sel) return;
@@ -4739,8 +4752,31 @@ function initCompMonthDropdowns(){
   });
   const f=document.getElementById('compFromMonth');
   const t=document.getElementById('compToMonth');
-  if(f&&!f.value) f.value=qStart;
-  if(t&&!t.value) t.value=curMonth;
+  if(f&&!f.value) f.value=defFrom;
+  if(t&&!t.value) t.value=defTo;
+}
+
+function initWfCompMonthDropdowns(){
+  const allM=getAllYearMonths();
+  const {from:defFrom,to:defTo}=getDefault3MonthRange();
+  ['wfCompFromMonth','wfCompToMonth'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const prev=sel.value;
+    sel.innerHTML=allM.map(m=>`<option value="${m}">${m}</option>`).join('');
+    sel.value=prev||'';
+  });
+  const f=document.getElementById('wfCompFromMonth');
+  const t=document.getElementById('wfCompToMonth');
+  if(f&&!f.value) f.value=defFrom;
+  if(t&&!t.value) t.value=defTo;
+}
+
+function getWfCompMonths(){
+  const allM=getAllYearMonths();
+  const from=document.getElementById('wfCompFromMonth')?.value||allM[0];
+  const to=document.getElementById('wfCompToMonth')?.value||allM[allM.length-1];
+  return allM.filter(m=>m>=from&&m<=to);
 }
 
 function getCompMonths(){
