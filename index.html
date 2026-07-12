@@ -1855,13 +1855,27 @@ function renderBillTable(){
 
 // ── Update bill footer only ───────────────────
 function updateBillFooter(){
-  const q=(document.getElementById('billSearch').value||'').toLowerCase();
-  const emps=filtEmps(currentEmps(),sharedFilter).filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
+  const q=(document.getElementById('billSearch').value||'').toLowerCase().trim();
+  const statusFilter=document.getElementById('billStatusFilter')?.value||'';
+  const baseEmps = filtEmps(currentEmps(),sharedFilter);
+  const allDupPairs = findMasterListDuplicatePairs(baseEmps);
+  const dupPartner = {};
+  allDupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
+  let emps;
+  if(q==='dup'||q==='dups'||q==='duplicate'||q==='duplicates'){
+    emps = baseEmps.filter(e=>dupPartner[e.code]);
+  } else {
+    emps = baseEmps.filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
+  }
+  if(statusFilter){
+    emps = emps.filter(e=>(e.status||'').toUpperCase().replace(/[\s_]/g,'-')===statusFilter);
+  }
   let tBMD=0,tNBMD=0,tIPMD=0,tTMD=0,tBC=0,tTC=0,tMonthlyCost=0,tDailyRate=0;
   emps.forEach(e=>{
-    const{tot,bc,tc}=calc(e);
+    const overrideCost = dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+    const{tot,bc,tc,costUsed}=calcWithCost(e, overrideCost);
     tBMD+=e.billableMD;tNBMD+=e.nonBillableMD;tIPMD+=e.intProjMD;
-    tTMD+=tot;tBC+=bc;tTC+=tc;tMonthlyCost+=e.cost;tDailyRate+=e.cost*12/210;
+    tTMD+=tot;tBC+=bc;tTC+=tc;tMonthlyCost+=costUsed;tDailyRate+=costUsed*12/210;
   });
   const tBpct=tTC>0?tBC/tTC:0,tUpct=tTMD>0?(tBMD+tIPMD)/tTMD:0;
   document.getElementById('billFoot').innerHTML=`<tr>
