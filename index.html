@@ -3365,6 +3365,16 @@ function setAction(code, month, action){
   if(!wfActions[code]) wfActions[code] = {};
   wfActions[code][month] = action;
 }
+// Returns the most recent non-blank action for this code, checking from the latest month
+// backwards — so if August is blank but July has "To Be Released", that's what's shown,
+// instead of incorrectly showing "No action" just because the very latest month is empty.
+function getLastKnownAction(code){
+  for(let i=allMonths.length-1;i>=0;i--){
+    const a = getAction(code, allMonths[i]);
+    if(a) return a;
+  }
+  return '';
+}
 let wfActionOptions = [
   'Bucket 1 : Moved to Solution Desk',
   'Bucket 2 : Moved to Managed Services',
@@ -4065,7 +4075,7 @@ function renderWfCompare(){
       const p = calc(e).bpct*100;
       const label = p===0 ? 'Benched 0%' : p<70 ? `Ramping ${p.toFixed(0)}%` : `On target ${p.toFixed(0)}%`;
       codeMap[e.code].statuses[s.month] = label;
-      codeMap[e.code].action = getAction(e.code, allMonths[allMonths.length-1]);
+      codeMap[e.code].action = getLastKnownAction(e.code);
     });
   });
   // Only show people who were Benched or Ramping in at least one month
@@ -4104,7 +4114,7 @@ function exportWfCompareTable(){
       const p = calc(e).bpct*100;
       const label = p===0 ? 'Benched 0%' : p<70 ? `Ramping ${p.toFixed(0)}%` : `On target ${p.toFixed(0)}%`;
       codeMap[e.code].statuses[s.month] = label;
-      codeMap[e.code].action = getAction(e.code, allMonths[allMonths.length-1]);
+      codeMap[e.code].action = getLastKnownAction(e.code);
     });
   });
   const wfcq=(searchWfComp||'').toLowerCase();
