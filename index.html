@@ -1487,6 +1487,14 @@ function parseJoinMonth(raw){
   return null;
 }
 
+// A resource counts as resigned if their status text says so, OR if they simply have a
+// Resigned Date filled in at all -- even if their status still says Active/Active-Not-Rebadged.
+function isMlResigned(ml){
+  const s=(ml.mlStatus||'').toLowerCase().trim();
+  const hasResignedDate = !!(ml.resignedDate && ml.resignedDate.toString().trim() && ml.resignedDate.toString().trim().toUpperCase()!=='NA');
+  return s==='resigned'||s==='left'||s==='terminated'||s==='inactive'||hasResignedDate;
+}
+
 // Check if employee should be shown for a given month based on join date
 // Returns true if employee was active (joined on or before the selected month)
 function isActiveForMonth(m, month){
@@ -4743,8 +4751,7 @@ function renderCostAnalysis(){
   // Build from masterList — Active + Resigned with known date + practice filter
   const allRows=masterList
     .filter(ml=>{
-      const status=(ml.mlStatus||'').toLowerCase().trim();
-      const isResigned=status==='resigned'||status==='left'||status==='terminated'||status==='inactive';
+      const isResigned=isMlResigned(ml);
       const rd=parseJoinMonth(ml.resignedDate);
       // Include: Active, OR Resigned with known date (exclude resigned with no date)
       const include=(!isResigned)||(isResigned&&rd);
@@ -4758,8 +4765,7 @@ function renderCostAnalysis(){
       return include && matchSearch && matchPractice;
     })
     .map(ml=>{
-      const status=(ml.mlStatus||'').toLowerCase().trim();
-      const isResigned=status==='resigned'||status==='left'||status==='terminated'||status==='inactive';
+      const isResigned=isMlResigned(ml);
       const rd=parseJoinMonth(ml.resignedDate);
       const jd=parseJoinMonth(ml.joinedDate);
       const isCW=(ml.fteCw||'').toUpperCase()==='CW';
@@ -4833,15 +4839,11 @@ function renderCostAnalysis(){
         notes.push(`<div style="margin-top:4px"><b>${newHires.length} new hire${newHires.length>1?'s':''} joined</b><br>(${newHires.map(m=>m.name).join(', ')})</div>`);
       }
       // Resignations
-      const resigned=masterList.filter(ml=>{
-        const s=(ml.mlStatus||'').toLowerCase();
-        return (s==='resigned'||s==='inactive'||s==='left'||s==='terminated');
-      });
+      const resigned=masterList.filter(ml=>isMlResigned(ml));
       // Resigned this month
       const resignedThisMonth=masterList.filter(ml=>{
-        const s=(ml.mlStatus||'').toLowerCase();
         const rd=parseJoinMonth(ml.resignedDate);
-        return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month;
+        return isMlResigned(ml) && rd===month;
       });
       if(resignedThisMonth.length>0){
         notes.push(`<div style="margin-top:4px"><b>${resignedThisMonth.length} resource${resignedThisMonth.length>1?'s':''} resigned</b><br>(${resignedThisMonth.map(m=>m.name).join(', ')})</div>`);
@@ -4984,8 +4986,7 @@ function renderTeamOverview(){
 
   // Active resources only + practice filter
   const activeML=masterList.filter(ml=>{
-    const status=(ml.mlStatus||'').toLowerCase().trim();
-    const isActive=!status||status==='active'||status.startsWith('active/');
+    const isActive=!isMlResigned(ml);
     const matchPractice=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
     return isActive && matchPractice;
   });
@@ -5022,11 +5023,10 @@ function renderTeamOverview(){
       return jm===month && matchP && isFTE;
     });
     const resignedList = masterList.filter(ml=>{
-      const s=(ml.mlStatus||'').toLowerCase();
       const rd=parseJoinMonth(ml.resignedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
-      return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP && isFTE;
+      return isMlResigned(ml) && rd===month && matchP && isFTE;
     });
     const iqamaList = masterList.filter(ml=>{
       const im=parseIqamaMonth(ml.iqamaDate);
@@ -5041,11 +5041,10 @@ function renderTeamOverview(){
       return jm===month && matchP && isCW;
     });
     const cwResignedList = masterList.filter(ml=>{
-      const s=(ml.mlStatus||'').toLowerCase();
       const rd=parseJoinMonth(ml.resignedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isCW=(ml.fteCw||'').toUpperCase()==='CW';
-      return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP && isCW;
+      return isMlResigned(ml) && rd===month && matchP && isCW;
     });
     return {
       newHires:newHiresList.length, newHiresNames:newHiresList.map(m=>m.name).join(', '),
@@ -5060,10 +5059,9 @@ function renderTeamOverview(){
   // First find the base: all resources active at start of first month
   const firstMonth=wfMonths[0];
   let closing=masterList.filter(ml=>{
-    const s=(ml.mlStatus||'').toLowerCase().trim();
     const jm=parseJoinMonth(ml.joinedDate);
     const rd=parseJoinMonth(ml.resignedDate);
-    const isResigned=s==='resigned'||s==='left'||s==='terminated'||s==='inactive';
+    const isResigned=isMlResigned(ml);
     const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
     const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
     const joinedByMonth=!jm||jm<firstMonth;
@@ -5101,7 +5099,7 @@ function renderTeamOverview(){
       ${monthData.map(d=>`<td style="${rowStyle};color:${d.iqamaMoves?'var(--blue)':'var(--text3)'}" title="${d.iqamaNames}">${d.iqamaMoves||'—'}</td>`).join('')}
     </tr>
     <tr>
-      <td style="${tdS};color:var(--amber);padding-left:20px">▲ CW New hires</td>
+      <td style="${tdS};color:var(--amber);padding-left:20px">▲ New CW</td>
       ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwNewHires?'var(--amber)':'var(--text3)'}" title="${d.cwNewHiresNames}">${d.cwNewHires||'—'}</td>`).join('')}
     </tr>
     <tr>
