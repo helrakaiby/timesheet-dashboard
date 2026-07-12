@@ -2906,21 +2906,36 @@ function loadState(){
 // Auto-save whenever state changes
 function autoSave(){
   clearTimeout(window._saveDebounce);
-  window._saveDebounce = setTimeout(async ()=>{
-    window._savePending = true;
-    const ind = document.getElementById('savedIndicator');
-    if(ind){ ind.textContent='⏳ Saving...'; ind.style.display='inline'; }
-    try{
+  window._saveDebounce = setTimeout(runQueuedSave, 500);
+}
+
+// Runs saveState(), but NEVER overlaps with an already-in-progress save — if one is running
+// when this fires, it just marks that another save is needed and lets the running one pick it
+// up when it finishes. This is what prevents two saves racing each other and randomly dropping
+// different months' data depending on unpredictable network timing.
+async function runQueuedSave(){
+  if(window._saveRunning){
+    window._saveNeedsRerun = true;
+    return;
+  }
+  window._saveRunning = true;
+  window._savePending = true;
+  const ind = document.getElementById('savedIndicator');
+  if(ind){ ind.textContent='⏳ Saving...'; ind.style.display='inline'; }
+  try{
+    do{
+      window._saveNeedsRerun = false;
       await saveState();
-    } finally {
-      window._savePending = false;
-      if(ind){
-        ind.textContent='✅ Saved';
-        clearTimeout(window._indTimer);
-        window._indTimer = setTimeout(()=>{ind.style.display='none';},2000);
-      }
+    } while(window._saveNeedsRerun);
+  } finally {
+    window._saveRunning = false;
+    window._savePending = false;
+    if(ind){
+      ind.textContent='✅ Saved';
+      clearTimeout(window._indTimer);
+      window._indTimer = setTimeout(()=>{ind.style.display='none';},2000);
     }
-  }, 500);
+  }
 }
 
 // Warn if the user tries to leave/refresh while a save is still in flight —
