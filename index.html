@@ -376,6 +376,15 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
           <span class="search-icon">🔍</span>
           <input type="text" id="billSearch" placeholder="Search name or code…" oninput="renderBillTable()">
         </div>
+        <select id="billStatusFilter" onchange="renderBillTable()" style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--bg)">
+          <option value="">All statuses</option>
+          <option value="POSTED">Posted</option>
+          <option value="APPROVED">Approved</option>
+          <option value="UNDER-APPROVAL">Under-Approval</option>
+          <option value="NOT-SUBMITTED">Not-Submitted</option>
+          <option value="NOT-ENTERED">Not-Entered</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
         <div class="col-toggle-wrap">
           <button class="col-toggle-btn" onclick="toggleColDropdown()">⊞ Columns</button>
           <div class="col-toggle-dropdown" id="colToggleDrop">
@@ -1717,6 +1726,7 @@ function sortBill(col){if(_resizeDragging)return;if(billSort.col===col)billSort.
 function renderBillTable(){
   sortIcons('bs',billSort.col,billSort.asc,16);
   const q=(document.getElementById('billSearch').value||'').toLowerCase().trim();
+  const statusFilter=document.getElementById('billStatusFilter')?.value||'';
   const baseEmps = filtEmps(currentEmps(), sharedFilter);
 
   // Compute duplicate pairs against the FULL month (before search) so "dup" search works consistently
@@ -1729,6 +1739,9 @@ function renderBillTable(){
     emps = baseEmps.filter(e=>dupPartner[e.code]);
   } else {
     emps = baseEmps.filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
+  }
+  if(statusFilter){
+    emps = emps.filter(e=>(e.status||'').toUpperCase().replace(/[\s_]/g,'-')===statusFilter);
   }
   if(billSort.col>=0){
     emps=[...emps].sort((a,b)=>{
