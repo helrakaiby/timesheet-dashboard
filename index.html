@@ -1544,6 +1544,10 @@ function parseJoinMonth(raw){
 // Resigned Date filled in at all -- even if their status still says Active/Active-Not-Rebadged.
 function isMlResigned(ml){
   const s=(ml.mlStatus||'').toLowerCase().trim();
+  const isCW=(ml.fteCw||'').toUpperCase()==='CW';
+  // For CW, Resigned Date is just their contract's planned end date, not an actual departure —
+  // so CW relies purely on status text. FTE additionally treats any resigned date as authoritative.
+  if(isCW) return s==='resigned'||s==='left'||s==='terminated'||s==='inactive';
   const hasResignedDate = !!(ml.resignedDate && ml.resignedDate.toString().trim() && ml.resignedDate.toString().trim().toUpperCase()!=='NA');
   return s==='resigned'||s==='left'||s==='terminated'||s==='inactive'||hasResignedDate;
 }
