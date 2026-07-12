@@ -1749,7 +1749,11 @@ function updateKPIs(){
     return s==='POSTED'||s==='APPROVED';
   });
   let cBC=0,cBMD=0,cIPMD=0;
-  confirmedEmps.forEach(e=>{const{bc}=calc(e);cBC+=bc;cBMD+=e.billableMD;cIPMD+=e.intProjMD;});
+  confirmedEmps.forEach(e=>{
+    const overrideCost = kpiDupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+    const{bc}=calcWithCost(e, overrideCost);
+    cBC+=bc;cBMD+=e.billableMD;cIPMD+=e.intProjMD;
+  });
   document.getElementById('kpiConfirmedBill').textContent=tTC>0?pct(cBC/tTC):'—';
   document.getElementById('kpiConfirmedUtil').textContent=tMD>0?pct((cBMD+cIPMD)/tMD):'—';
   document.getElementById('kpiConfirmedSub').textContent=`Posted/Approved only • ${confirmedEmps.length} of ${emps.length} resources`;
