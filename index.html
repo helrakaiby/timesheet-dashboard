@@ -5236,7 +5236,7 @@ function renderTeamOverview(){
       ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwNewHires?'var(--amber)':'var(--text3)'}" title="${d.cwNewHiresNames}">${d.cwNewHires||'—'}</td>`).join('')}
     </tr>
     <tr>
-      <td style="${tdS};color:var(--amber);padding-left:20px">▼ CW Resigned</td>
+      <td style="${tdS};color:var(--amber);padding-left:20px">▼ CW Contract End Date</td>
       ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwResigned?'var(--amber)':'var(--text3)'}" title="${d.cwResignedNames}">${d.cwResigned||'—'}</td>`).join('')}
     </tr>`;
 
