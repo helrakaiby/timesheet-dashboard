@@ -5055,19 +5055,18 @@ function renderTeamOverview(){
     return joinedByMonth && matchP;
   }).length;
 
-  const closingByMonth=wfMonths.map((month,i)=>{
-    if(i>0) closing = closing + monthData[i].newHires - monthData[i-1].resigned;
-    return closing;
+  const openingByMonth=[], closingByMonth=[];
+  wfMonths.forEach((month,i)=>{
+    const opening = i===0 ? closing : closingByMonth[i-1];
+    closingByMonth.push(opening + monthData[i].newHires - monthData[i].resigned);
+    openingByMonth.push(opening);
   });
 
   const rowStyle=`${tdS};text-align:center`;
   document.getElementById('wfovMonthBody').innerHTML=`
     <tr style="background:var(--bg2)">
       <td style="${tdS};font-weight:700">Opening headcount</td>
-      ${closingByMonth.map((c,i)=>{
-        const opening = i===0 ? c - monthData[0].newHires + monthData[0].resigned : closingByMonth[i-1];
-        return `<td style="${rowStyle};font-weight:700">${opening}</td>`;
-      }).join('')}
+      ${openingByMonth.map(o=>`<td style="${rowStyle};font-weight:700">${o}</td>`).join('')}
     </tr>
     <tr>
       <td style="${tdS};color:var(--green);padding-left:20px">▲ New hires</td>
