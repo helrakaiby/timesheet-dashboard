@@ -5014,41 +5014,47 @@ function renderTeamOverview(){
   </tr>`;
 
   // Calculate per-month metrics — FTE only, CW resources are shown in the KPI card instead
-  const monthData=wfMonths.map(month=>({
-    newHires: masterList.filter(ml=>{
+  const monthData=wfMonths.map(month=>{
+    const newHiresList = masterList.filter(ml=>{
       const jm=parseJoinMonth(ml.joinedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
       return jm===month && matchP && isFTE;
-    }).length,
-    resigned: masterList.filter(ml=>{
+    });
+    const resignedList = masterList.filter(ml=>{
       const s=(ml.mlStatus||'').toLowerCase();
       const rd=parseJoinMonth(ml.resignedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
       return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP && isFTE;
-    }).length,
-    iqamaMoves: masterList.filter(ml=>{
+    });
+    const iqamaList = masterList.filter(ml=>{
       const im=parseIqamaMonth(ml.iqamaDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
       return im===month && matchP && isFTE;
-    }).length,
-    // CW — informational only, doesn't feed into the Opening/Closing FTE math above
-    cwNewHires: masterList.filter(ml=>{
+    });
+    const cwNewHiresList = masterList.filter(ml=>{
       const jm=parseJoinMonth(ml.joinedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isCW=(ml.fteCw||'').toUpperCase()==='CW';
       return jm===month && matchP && isCW;
-    }).length,
-    cwResigned: masterList.filter(ml=>{
+    });
+    const cwResignedList = masterList.filter(ml=>{
       const s=(ml.mlStatus||'').toLowerCase();
       const rd=parseJoinMonth(ml.resignedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isCW=(ml.fteCw||'').toUpperCase()==='CW';
       return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP && isCW;
-    }).length
-  }));
+    });
+    return {
+      newHires:newHiresList.length, newHiresNames:newHiresList.map(m=>m.name).join(', '),
+      resigned:resignedList.length, resignedNames:resignedList.map(m=>m.name).join(', '),
+      iqamaMoves:iqamaList.length, iqamaNames:iqamaList.map(m=>m.name).join(', '),
+      cwNewHires:cwNewHiresList.length, cwNewHiresNames:cwNewHiresList.map(m=>m.name).join(', '),
+      cwResigned:cwResignedList.length, cwResignedNames:cwResignedList.map(m=>m.name).join(', ')
+    };
+  });
 
   // Calculate closing headcount per month
   // First find the base: all resources active at start of first month
@@ -5080,11 +5086,11 @@ function renderTeamOverview(){
     </tr>
     <tr>
       <td style="${tdS};color:var(--green);padding-left:20px">▲ New hires</td>
-      ${monthData.map(d=>`<td style="${rowStyle};color:${d.newHires?'var(--green)':'var(--text3)'}">${d.newHires||'—'}</td>`).join('')}
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.newHires?'var(--green)':'var(--text3)'}" title="${d.newHiresNames}">${d.newHires||'—'}</td>`).join('')}
     </tr>
     <tr>
       <td style="${tdS};color:var(--red);padding-left:20px">▼ Resigned</td>
-      ${monthData.map(d=>`<td style="${rowStyle};color:${d.resigned?'var(--red)':'var(--text3)'}">${d.resigned||'—'}</td>`).join('')}
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.resigned?'var(--red)':'var(--text3)'}" title="${d.resignedNames}">${d.resigned||'—'}</td>`).join('')}
     </tr>
     <tr style="background:var(--bg2)">
       <td style="${tdS};font-weight:700">Closing headcount</td>
@@ -5092,15 +5098,15 @@ function renderTeamOverview(){
     </tr>
     <tr>
       <td style="${tdS};color:var(--blue);padding-left:20px">→ Moved Onshore (IQAMA)</td>
-      ${monthData.map(d=>`<td style="${rowStyle};color:${d.iqamaMoves?'var(--blue)':'var(--text3)'}">${d.iqamaMoves||'—'}</td>`).join('')}
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.iqamaMoves?'var(--blue)':'var(--text3)'}" title="${d.iqamaNames}">${d.iqamaMoves||'—'}</td>`).join('')}
     </tr>
     <tr>
       <td style="${tdS};color:var(--amber);padding-left:20px">▲ CW New hires</td>
-      ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwNewHires?'var(--amber)':'var(--text3)'}">${d.cwNewHires||'—'}</td>`).join('')}
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwNewHires?'var(--amber)':'var(--text3)'}" title="${d.cwNewHiresNames}">${d.cwNewHires||'—'}</td>`).join('')}
     </tr>
     <tr>
       <td style="${tdS};color:var(--amber);padding-left:20px">▼ CW Resigned</td>
-      ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwResigned?'var(--amber)':'var(--text3)'}">${d.cwResigned||'—'}</td>`).join('')}
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwResigned?'var(--amber)':'var(--text3)'}" title="${d.cwResignedNames}">${d.cwResigned||'—'}</td>`).join('')}
     </tr>`;
 
   // Resource list table
