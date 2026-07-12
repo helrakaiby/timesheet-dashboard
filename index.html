@@ -4761,6 +4761,8 @@ function renderCostAnalysis(){
       const status=(ml.mlStatus||'').toLowerCase().trim();
       const isResigned=status==='resigned'||status==='left'||status==='terminated'||status==='inactive';
       const rd=parseJoinMonth(ml.resignedDate);
+      const jd=parseJoinMonth(ml.joinedDate);
+      const isCW=(ml.fteCw||'').toUpperCase()==='CW';
       return {
         code:ml.code,
         name:ml.name||'',
@@ -4773,8 +4775,9 @@ function renderCostAnalysis(){
       isResigned,
         resignedDate:ml.resignedDate||'',
         costs:Object.fromEntries(costMonths.map(m=>[m,
-          // Only show cost for months before resigned date
-          (isResigned&&rd&&m>=rd) ? 0 : ((ml.fteCw||'').toUpperCase()==='CW' ? (ml.poCost||0) : getPasCost(ml,m))
+          // For CW: only show cost between their joined month and resigned month (inclusive of joined, exclusive of resigned)
+          (isCW && jd && m<jd) ? 0 :
+          (isResigned&&rd&&m>=rd) ? 0 : (isCW ? (ml.poCost||0) : getPasCost(ml,m))
         ]))
       };
     });
@@ -5183,7 +5186,12 @@ function exportCostTable(){
       const row={'Code':ml.code,'Name':ml.name||'','Practice':ml.practice||'',
         'PAS Profile':ml.pasProfile||'','Shore':ml.shore||'','IQAMA Date':ml.iqamaDate||''};
       let total=0;
-      costMonths.forEach(m=>{const c=((ml.fteCw||'').toUpperCase()==='CW' ? (ml.poCost||0) : getPasCost(ml,m))||0;row[m]=c;total+=c;});
+      const jd=parseJoinMonth(ml.joinedDate);
+      const isCW=(ml.fteCw||'').toUpperCase()==='CW';
+      costMonths.forEach(m=>{
+        const c = (isCW && jd && m<jd) ? 0 : (isCW ? (ml.poCost||0) : getPasCost(ml,m)) || 0;
+        row[m]=c;total+=c;
+      });
       row['Total']=total;
       return row;
     })
