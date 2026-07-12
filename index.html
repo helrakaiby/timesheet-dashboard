@@ -1477,6 +1477,7 @@ function rebuildTimesheetOnly(raw){
   if(monthTabsEl) monthTabsEl.style.display=allMonths.length>0?'':'none';
   if(filterSepEl) filterSepEl.style.display=allMonths.length>0?'':'none';
   initDashboard();
+  (async()=>{ await runQueuedSave(); await removeStaleMonthsFromDb(allMonths); })(); // save current data first, THEN clean up stale months — properly sequenced, not racing the natural autosave
 }
 
 function parseFile(file){
@@ -1687,6 +1688,7 @@ function buildData(raw,ml){
   // Duplicates now stay as separate rows — no silent auto-delete. They're handled by the
   // marking/cost/headcount system in Billability Summary and Non Compliant instead.
   initDashboard();
+  (async()=>{ await runQueuedSave(); await removeStaleMonthsFromDb(allMonths); })(); // save current data first, THEN clean up stale months — properly sequenced, not racing the natural autosave
 }
 
 function initDashboard(){
@@ -2661,6 +2663,26 @@ function pgNotIn(field, values){
   return `${field}=not.in.(${encodeURIComponent(list)})`;
 }
 
+// Explicitly removes months from the database that are no longer in the current month list.
+// IMPORTANT: this is intentionally NOT part of the automatic saveToSupabase() flow that runs on
+// every autosave — it's only ever called deliberately, right after a Timesheet upload finishes,
+// where "this month disappeared from the file" is a real, visible, intentional signal.
+// Calling this from general autosave was the root cause of months getting silently deleted
+// as a side-effect of unrelated actions (e.g. fixing a KPI card) whenever a browser tab's
+// in-memory month list didn't match reality for any reason.
+async function removeStaleMonthsFromDb(currentMonths){
+  try{
+    const monthRows = await sbFetch('employees?select=month');
+    const dbMonths = [...new Set((monthRows||[]).map(r=>r.month))];
+    for(const dbMonth of dbMonths){
+      if(!currentMonths.includes(dbMonth)){
+        await sbFetch(`employees?month=eq.${dbMonth}`, 'DELETE');
+        await sbFetch(`removed_resources?month=eq.${dbMonth}`, 'DELETE');
+      }
+    }
+  } catch(e){ console.error('❌ Stale-month cleanup failed:', e.message); }
+}
+
 async function saveToSupabase(state){
   // master_list -> full replace
   try{
@@ -2701,19 +2723,6 @@ async function saveToSupabase(state){
       }
     } catch(e){ console.error(`❌ Supabase sync failed for employees month ${m}:`, e.message); }
   }
-  // Any month that used to exist but is no longer in the current month list at all must be
-  // fully removed too (e.g. a Timesheet replace that dropped a month entirely).
-  try{
-    const monthRows = await sbFetch('employees?select=month');
-    const dbMonths = [...new Set((monthRows||[]).map(r=>r.month))];
-    const currentMonths = state.allMonths||[];
-    for(const dbMonth of dbMonths){
-      if(!currentMonths.includes(dbMonth)){
-        await sbFetch(`employees?month=eq.${dbMonth}`, 'DELETE');
-        await sbFetch(`removed_resources?month=eq.${dbMonth}`, 'DELETE');
-      }
-    }
-  } catch(e){ console.error('❌ Stale-month cleanup failed:', e.message); }
 
   // wf_actions -> full replace. state.wfActions is now {code: {month: action}}
   try{
