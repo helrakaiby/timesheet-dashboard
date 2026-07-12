@@ -2121,8 +2121,9 @@ function renderMissingTable(){
     const matchSearch = !m1q||(m.name.toLowerCase().includes(m1q)||m.code.toLowerCase().includes(m1q));
     const status = (m.mlStatus||'').toLowerCase().trim().replace(/\s+/g,' ');
     const isResigned = status==='resigned' || status==='inactive' || status==='left' || status==='terminated';
+    const isCW = (m.fteCw||'').toUpperCase()==='CW';
     const wasActiveInMonth = isActiveForMonth(m, curMonth);
-    return !foundInTS && !isResigned && wasActiveInMonth && !removedCodes.has(m.code) && matchSearch;
+    return !foundInTS && !isResigned && !isCW && wasActiveInMonth && !removedCodes.has(m.code) && matchSearch;
   });
   document.getElementById('missingCount1').textContent=notInTS.length;
   document.getElementById('missing1Body').innerHTML=notInTS.length===0
