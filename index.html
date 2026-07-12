@@ -676,7 +676,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <!-- Headcount vs Months table -->
     <div class="tcard" style="margin-bottom:1.25rem">
       <div class="sec-header" style="padding:.9rem 1rem 0">
-        <span class="sec-title">Headcount by Month</span>
+        <span class="sec-title">Headcount by Month FTE</span>
       </div>
       <div class="tscroll">
         <table id="wfovMonthTable" style="width:100%;border-collapse:collapse;font-size:12px">
@@ -4980,7 +4980,7 @@ function renderTeamOverview(){
   // Active resources only + practice filter
   const activeML=masterList.filter(ml=>{
     const status=(ml.mlStatus||'').toLowerCase().trim();
-    const isActive=!status||status==='active';
+    const isActive=!status||status==='active'||status.startsWith('active/');
     const matchPractice=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
     return isActive && matchPractice;
   });
@@ -5008,23 +5008,26 @@ function renderTeamOverview(){
     ${wfMonths.map(m=>`<th style="${thS};text-align:center">${m}</th>`).join('')}
   </tr>`;
 
-  // Calculate per-month metrics
+  // Calculate per-month metrics — FTE only, CW resources are shown in the KPI card instead
   const monthData=wfMonths.map(month=>({
     newHires: masterList.filter(ml=>{
       const jm=parseJoinMonth(ml.joinedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
-      return jm===month && matchP;
+      const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
+      return jm===month && matchP && isFTE;
     }).length,
     resigned: masterList.filter(ml=>{
       const s=(ml.mlStatus||'').toLowerCase();
       const rd=parseJoinMonth(ml.resignedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
-      return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP;
+      const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
+      return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP && isFTE;
     }).length,
     iqamaMoves: masterList.filter(ml=>{
       const im=parseIqamaMonth(ml.iqamaDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
-      return im===month && matchP;
+      const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
+      return im===month && matchP && isFTE;
     }).length
   }));
 
@@ -5037,9 +5040,10 @@ function renderTeamOverview(){
     const rd=parseJoinMonth(ml.resignedDate);
     const isResigned=s==='resigned'||s==='left'||s==='terminated'||s==='inactive';
     const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+    const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
     const joinedByMonth=!jm||jm<firstMonth;
-    if(isResigned) return rd ? joinedByMonth && rd>=firstMonth && matchP : false;
-    return joinedByMonth && matchP;
+    if(isResigned) return rd ? joinedByMonth && rd>=firstMonth && matchP && isFTE : false;
+    return joinedByMonth && matchP && isFTE;
   }).length;
 
   const openingByMonth=[], closingByMonth=[];
