@@ -1308,8 +1308,12 @@ function updateTeamDataOnly(file){
     // Rebuild master list only
     mlMap={};
     mlData.forEach(row=>{
-      const code=(findKey(row,'Employee ID')||findKey(row,'Employee Code')).trim();
-      if(!code)return;
+      let code=(findKey(row,'Employee ID')||findKey(row,'Employee Code')).trim();
+      const rowName=findKey(row,'Team Name')||findKey(row,'Employee Name');
+      if(!code){
+        if(!rowName) return; // truly nothing to identify this row by — skip
+        code='NOID-'+rowName.trim().toUpperCase().replace(/\s+/g,'-'); // synthetic code so CW/no-ID resources still get counted
+      }
       mlMap[code]={code,
         name     :findKey(row,'Team Name')||findKey(row,'Employee Name'),
         oldId    :findKey(row,'Old Employee ID')||findKey(row,'Old ID'),
@@ -1512,7 +1516,12 @@ function buildData(raw,ml){
 
   mlMap={};
   ml.forEach(r=>{
-    const code=findKey(r,'Employee ID')||findKey(r,'Employee Code'); if(!code)return;
+    let code=findKey(r,'Employee ID')||findKey(r,'Employee Code');
+    const rowName=findKey(r,'Team Name')||findKey(r,'Employee Name');
+    if(!code){
+      if(!rowName) return; // truly nothing to identify this row by — skip
+      code='NOID-'+rowName.trim().toUpperCase().replace(/\s+/g,'-'); // synthetic code so CW/no-ID resources still get counted
+    }
     mlMap[code]={code,
       name     :findKey(r,'Team Name')||findKey(r,'Employee Name'),
       oldId    :findKey(r,'Old Employee ID')||findKey(r,'Old ID'),
