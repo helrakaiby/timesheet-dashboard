@@ -1724,9 +1724,15 @@ function getActiveFilter(){
 }
 function updateKPIs(){
   const emps = filtEmps(currentEmps(), getActiveFilter());
-  let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
-  emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
   const kpiDupPairs = findMasterListDuplicatePairs(emps);
+  const kpiDupPartner = {};
+  kpiDupPairs.forEach(p=>{ kpiDupPartner[p.emp1.code]=p.emp2.code; kpiDupPartner[p.emp2.code]=p.emp1.code; });
+  let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
+  emps.forEach(e=>{
+    const overrideCost = kpiDupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+    const{bc,tc,tot}=calcWithCost(e, overrideCost);
+    tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;
+  });
   document.getElementById('kpiResources').textContent=emps.length - kpiDupPairs.length;
   document.getElementById('kpiBill').textContent=tTC>0?pct(tBC/tTC):'—';
   document.getElementById('kpiUtil').textContent=tMD>0?pct((tBMD+tIPMD)/tMD):'—';
