@@ -376,15 +376,6 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
           <span class="search-icon">🔍</span>
           <input type="text" id="billSearch" placeholder="Search name or code…" oninput="renderBillTable()">
         </div>
-        <select id="billStatusFilter" onchange="renderBillTable()" style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--bg)">
-          <option value="">All statuses</option>
-          <option value="POSTED">Posted</option>
-          <option value="APPROVED">Approved</option>
-          <option value="UNDER-APPROVAL">Under-Approval</option>
-          <option value="NOT-SUBMITTED">Not-Submitted</option>
-          <option value="NOT-ENTERED">Not-Entered</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
         <div class="col-toggle-wrap">
           <button class="col-toggle-btn" onclick="toggleColDropdown()">⊞ Columns</button>
           <div class="col-toggle-dropdown" id="colToggleDrop">
@@ -430,7 +421,14 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
           <th class="sortable" onclick="sortBill(12)" data-col="totalcost" id="th-totalcost">Total cost <span class="sort-icon" id="bs12">↕</span><div class="col-resizer" data-th="th-totalcost"></div></th>
           <th class="sortable" onclick="sortBill(13)" data-col="billpct" id="th-billpct">Billability % <span class="sort-icon" id="bs13">↕</span><div class="col-resizer" data-th="th-billpct"></div></th>
           <th class="sortable" onclick="sortBill(14)" data-col="utilpct" id="th-utilpct">Utilization % <span class="sort-icon" id="bs14">↕</span><div class="col-resizer" data-th="th-utilpct"></div></th>
-          <th class="sortable" onclick="sortBill(15)" data-col="status" id="th-status">Status <span class="sort-icon" id="bs15">↕</span><div class="col-resizer" data-th="th-status"></div></th>
+          <th class="sortable" data-col="status" id="th-status">
+            <span onclick="sortBill(15)">Status <span class="sort-icon" id="bs15">↕</span></span>
+            <span class="ms-wrap" style="position:relative;display:inline-block;margin-left:2px">
+              <span onclick="event.stopPropagation();toggleDD('billStatusDrop')" style="cursor:pointer;font-size:10px" title="Filter by status">▾</span>
+              <div class="ms-dropdown" id="billStatusDrop" style="right:0;left:auto"></div>
+            </span>
+            <div class="col-resizer" data-th="th-status"></div>
+          </th>
           <th style="width:36px" data-col="delete"></th>
         </tr></thead>
         <tbody id="billBody"></tbody>
@@ -945,6 +943,7 @@ let editedFieldsByMonth={}; // {month: {code: {billableMD:true, nonBillableMD:tr
 let originalDataByMonth={}; // {month: {code: {billableMD, nonBillableMD, intProjMD, practice, status}}}
 let allStatuses=[];
 let sharedFilter=new Set(['__all__']);
+let billStatusFilter=new Set(['__all__']);
 let removedByMonth={}; // {month: [{emp object}]}
 let selectedMonth=null;
 let compChartBillInst=null, compChartUtilInst=null, compChartCombinedInst=null, practChartBillInst=null, practChartUtilInst=null;
@@ -1114,6 +1113,44 @@ function onSharedChk(cb){
 }
 function sharedSelAll(){sharedFilter.clear();sharedFilter.add('__all__');document.querySelectorAll('#sharedPracticeDrop input').forEach(i=>i.checked=true);updSharedLabel();refreshShared();}
 function sharedClrAll(){sharedFilter.clear();document.querySelectorAll('#sharedPracticeDrop input').forEach(i=>i.checked=false);updSharedLabel();refreshShared();}
+
+// Status column multi-select filter (Billability Summary)
+function buildBillStatusDD(){
+  const drop=document.getElementById('billStatusDrop');
+  if(!drop)return;
+  const statuses=[...new Set(currentEmps().map(e=>(e.status||'').toUpperCase().replace(/[\s_]/g,'-')).filter(Boolean))].sort();
+  drop.innerHTML=
+    `<div class="ms-actions"><button class="ms-act" onclick="billStatusSelAll()">Select all</button><button class="ms-act" onclick="billStatusClrAll()">Clear all</button></div><div class="ms-divider"></div>`+
+    statuses.map(s=>`<label class="ms-item"><input type="checkbox" value="${s}" ${billStatusFilter.has('__all__')||billStatusFilter.has(s)?'checked':''} onchange="onBillStatusChk(this)">${s}</label>`).join('');
+}
+let _billStatusChkLock=false;
+function onBillStatusChk(cb){
+  if(_billStatusChkLock) return;
+  const val=cb.value;
+  const wasAll=billStatusFilter.has('__all__');
+  const statuses=[...document.querySelectorAll('#billStatusDrop input[type=checkbox]')].map(i=>i.value);
+  if(wasAll && !cb.checked){
+    billStatusFilter.delete('__all__');
+    statuses.forEach(s=>billStatusFilter.add(s));
+    billStatusFilter.delete(val);
+    _billStatusChkLock=true;
+    document.querySelectorAll('#billStatusDrop input[type=checkbox]').forEach(i=>{ i.checked = i.value!==val; });
+    _billStatusChkLock=false;
+  } else {
+    billStatusFilter.delete('__all__');
+    if(cb.checked) billStatusFilter.add(val);
+    else billStatusFilter.delete(val);
+  }
+  if(billStatusFilter.size===0){
+    billStatusFilter.add('__all__');
+    _billStatusChkLock=true;
+    document.querySelectorAll('#billStatusDrop input').forEach(i=>i.checked=true);
+    _billStatusChkLock=false;
+  }
+  renderBillTable();
+}
+function billStatusSelAll(){billStatusFilter.clear();billStatusFilter.add('__all__');document.querySelectorAll('#billStatusDrop input').forEach(i=>i.checked=true);renderBillTable();}
+function billStatusClrAll(){billStatusFilter.clear();document.querySelectorAll('#billStatusDrop input').forEach(i=>i.checked=false);renderBillTable();}
 function updSharedLabel(){
   const el=document.getElementById('sharedPracticeFilterLabel');
   const tagsWrap=document.getElementById('pracTagsWrap');
@@ -1726,7 +1763,7 @@ function sortBill(col){if(_resizeDragging)return;if(billSort.col===col)billSort.
 function renderBillTable(){
   sortIcons('bs',billSort.col,billSort.asc,16);
   const q=(document.getElementById('billSearch').value||'').toLowerCase().trim();
-  const statusFilter=document.getElementById('billStatusFilter')?.value||'';
+  buildBillStatusDD();
   const baseEmps = filtEmps(currentEmps(), sharedFilter);
 
   // Compute duplicate pairs against the FULL month (before search) so "dup" search works consistently
@@ -1740,8 +1777,8 @@ function renderBillTable(){
   } else {
     emps = baseEmps.filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
   }
-  if(statusFilter){
-    emps = emps.filter(e=>(e.status||'').toUpperCase().replace(/[\s_]/g,'-')===statusFilter);
+  if(!billStatusFilter.has('__all__')){
+    emps = emps.filter(e=>billStatusFilter.has((e.status||'').toUpperCase().replace(/[\s_]/g,'-')));
   }
   if(billSort.col>=0){
     emps=[...emps].sort((a,b)=>{
@@ -1856,7 +1893,6 @@ function renderBillTable(){
 // ── Update bill footer only ───────────────────
 function updateBillFooter(){
   const q=(document.getElementById('billSearch').value||'').toLowerCase().trim();
-  const statusFilter=document.getElementById('billStatusFilter')?.value||'';
   const baseEmps = filtEmps(currentEmps(),sharedFilter);
   const allDupPairs = findMasterListDuplicatePairs(baseEmps);
   const dupPartner = {};
@@ -1867,8 +1903,8 @@ function updateBillFooter(){
   } else {
     emps = baseEmps.filter(e=>!q||e.name.toLowerCase().includes(q)||e.code.toLowerCase().includes(q));
   }
-  if(statusFilter){
-    emps = emps.filter(e=>(e.status||'').toUpperCase().replace(/[\s_]/g,'-')===statusFilter);
+  if(!billStatusFilter.has('__all__')){
+    emps = emps.filter(e=>billStatusFilter.has((e.status||'').toUpperCase().replace(/[\s_]/g,'-')));
   }
   let tBMD=0,tNBMD=0,tIPMD=0,tTMD=0,tBC=0,tTC=0,tMonthlyCost=0,tDailyRate=0;
   emps.forEach(e=>{
