@@ -5033,6 +5033,20 @@ function renderTeamOverview(){
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
       return im===month && matchP && isFTE;
+    }).length,
+    // CW — informational only, doesn't feed into the Opening/Closing FTE math above
+    cwNewHires: masterList.filter(ml=>{
+      const jm=parseJoinMonth(ml.joinedDate);
+      const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+      const isCW=(ml.fteCw||'').toUpperCase()==='CW';
+      return jm===month && matchP && isCW;
+    }).length,
+    cwResigned: masterList.filter(ml=>{
+      const s=(ml.mlStatus||'').toLowerCase();
+      const rd=parseJoinMonth(ml.resignedDate);
+      const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+      const isCW=(ml.fteCw||'').toUpperCase()==='CW';
+      return (s==='resigned'||s==='left'||s==='terminated'||s==='inactive') && rd===month && matchP && isCW;
     }).length
   }));
 
@@ -5079,6 +5093,14 @@ function renderTeamOverview(){
     <tr>
       <td style="${tdS};color:var(--blue);padding-left:20px">→ Moved Onshore (IQAMA)</td>
       ${monthData.map(d=>`<td style="${rowStyle};color:${d.iqamaMoves?'var(--blue)':'var(--text3)'}">${d.iqamaMoves||'—'}</td>`).join('')}
+    </tr>
+    <tr>
+      <td style="${tdS};color:var(--amber);padding-left:20px">▲ CW New hires</td>
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwNewHires?'var(--amber)':'var(--text3)'}">${d.cwNewHires||'—'}</td>`).join('')}
+    </tr>
+    <tr>
+      <td style="${tdS};color:var(--amber);padding-left:20px">▼ CW Resigned</td>
+      ${monthData.map(d=>`<td style="${rowStyle};color:${d.cwResigned?'var(--amber)':'var(--text3)'}">${d.cwResigned||'—'}</td>`).join('')}
     </tr>`;
 
   // Resource list table
