@@ -5050,7 +5050,7 @@ function renderTeamOverview(){
     const rd=parseJoinMonth(ml.resignedDate);
     const isResigned=s==='resigned'||s==='left'||s==='terminated'||s==='inactive';
     const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
-    const joinedByMonth=!jm||jm<=firstMonth;
+    const joinedByMonth=!jm||jm<firstMonth;
     if(isResigned) return rd ? joinedByMonth && rd>=firstMonth && matchP : false;
     return joinedByMonth && matchP;
   }).length;
