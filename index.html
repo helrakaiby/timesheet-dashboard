@@ -5175,7 +5175,9 @@ function renderTeamOverview(){
       const rd=parseJoinMonth(ml.resignedDate);
       const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
       const isCW=(ml.fteCw||'').toUpperCase()==='CW';
-      return isMlResigned(ml) && rd===month && matchP && isCW;
+      // For CW, Resigned Date = contract end date — use it directly to attribute the month,
+      // regardless of current status text (unlike FTE, which is gated by isMlResigned()).
+      return isCW && rd && rd===month && matchP;
     });
     return {
       newHires:newHiresList.length, newHiresNames:newHiresList.map(m=>m.name).join(', '),
