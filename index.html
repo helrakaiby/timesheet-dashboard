@@ -4957,7 +4957,8 @@ function renderCostAnalysis(){
       // IQAMA moves this month
       const iqamaMoves=masterList.filter(ml=>{
         const im=parseIqamaMonth(ml.iqamaDate);
-        return im===month && (ml.mlStatus||'').toLowerCase()!=='resigned';
+        const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+        return im===month && (ml.mlStatus||'').toLowerCase()!=='resigned' && matchP;
       });
       if(iqamaMoves.length>0){
         notes.push(`<div style="margin-top:4px"><b>${iqamaMoves.length} resource${iqamaMoves.length>1?'s':''} moved Onshore (IQAMA)</b><br>(${iqamaMoves.map(m=>m.name).join(', ')})</div>`);
@@ -4965,17 +4966,17 @@ function renderCostAnalysis(){
       // New hires this month
       const newHires=masterList.filter(ml=>{
         const jm=parseJoinMonth(ml.joinedDate);
-        return jm===month && (ml.mlStatus||'').toLowerCase()!=='resigned';
+        const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+        return jm===month && (ml.mlStatus||'').toLowerCase()!=='resigned' && matchP;
       });
       if(newHires.length>0){
         notes.push(`<div style="margin-top:4px"><b>${newHires.length} new hire${newHires.length>1?'s':''} joined</b><br>(${newHires.map(m=>m.name).join(', ')})</div>`);
       }
       // Resignations
-      const resigned=masterList.filter(ml=>isMlResigned(ml));
-      // Resigned this month
       const resignedThisMonth=masterList.filter(ml=>{
         const rd=parseJoinMonth(ml.resignedDate);
-        return isMlResigned(ml) && rd===month;
+        const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+        return isMlResigned(ml) && rd===month && matchP;
       });
       if(resignedThisMonth.length>0){
         notes.push(`<div style="margin-top:4px"><b>${resignedThisMonth.length} resource${resignedThisMonth.length>1?'s':''} resigned</b><br>(${resignedThisMonth.map(m=>m.name).join(', ')})</div>`);
