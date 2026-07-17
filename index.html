@@ -2218,11 +2218,15 @@ function renderCompare(){
   // Per-month practice stats
   function monthPracticeStats(month){
     const emps=filtEmps(employeesByMonth[month]||[], sharedFilter);
+    const dupPairs = findMasterListDuplicatePairs(emps);
+    const dupPartner = {};
+    dupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
     const pmap={};
     emps.forEach(emp=>{
       const p=emp.practice||'Unknown';
       if(!pmap[p])pmap[p]={codes:new Set(),bMD:0,nbMD:0,ipMD:0,bc:0,tc:0};
-      const{bc,tc}=calc(emp);
+      const overrideCost = dupPartner[emp.code] ? getDuplicateOverrideCost(emp) : null;
+      const{bc,tc}=calcWithCost(emp, overrideCost);
       pmap[p].codes.add(emp.code);pmap[p].bMD+=emp.billableMD;pmap[p].nbMD+=emp.nonBillableMD;
       pmap[p].ipMD+=emp.intProjMD;pmap[p].bc+=bc;pmap[p].tc+=tc;
     });
@@ -2234,10 +2238,16 @@ function renderCompare(){
   // ── KPI cards (overall per month) ──
   function monthOverall(month){
     const emps=filtEmps(employeesByMonth[month]||[], sharedFilter);
+    const dupPairs = findMasterListDuplicatePairs(emps);
+    const dupPartner = {};
+    dupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
     let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
-    emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
-    const dupPairsThisMonth = findMasterListDuplicatePairs(emps).length;
-    return{resources:emps.length-dupPairsThisMonth,bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
+    emps.forEach(e=>{
+      const overrideCost = dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+      const{bc,tc,tot}=calcWithCost(e, overrideCost);
+      tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;
+    });
+    return{resources:emps.length-dupPairs.length,bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
   }
   const overalls=compMonths.map(m=>({month:m,...monthOverall(m)}));
 
@@ -3258,8 +3268,15 @@ function exportCompareTable(){
     const row={'Practice':p};
     compMonths.forEach(m=>{
       const emps=filtEmps(employeesByMonth[m]||[],sharedFilter).filter(e=>normP(e.practice)===p);
+      const dupPairs = findMasterListDuplicatePairs(emps);
+      const dupPartner = {};
+      dupPairs.forEach(pr=>{ dupPartner[pr.emp1.code]=pr.emp2.code; dupPartner[pr.emp2.code]=pr.emp1.code; });
       let tBC=0,tTC=0,tBMD=0,tIPMD=0,tMD=0;
-      emps.forEach(e=>{const{bc,tc,tot}=calc(e);tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;});
+      emps.forEach(e=>{
+        const overrideCost = dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+        const{bc,tc,tot}=calcWithCost(e, overrideCost);
+        tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;
+      });
       row[`${m} Resources`]=emps.length;
       row[`${m} Billability %`]=tTC>0?(tBC/tTC*100).toFixed(1)+'%':'—';
       row[`${m} Utilization %`]=tMD>0?((tBMD+tIPMD)/tMD*100).toFixed(1)+'%':'—';
