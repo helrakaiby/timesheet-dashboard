@@ -1775,6 +1775,8 @@ function sortIcons(prefix,col,asc,n){
 
 // ── Billability table ──────────────────────────────────────────────────────
 function sortBill(col){if(_resizeDragging)return;if(billSort.col===col)billSort.asc=!billSort.asc;else{billSort.col=col;billSort.asc=true;}renderBillTable();}
+let wfCompSort={col:-1,asc:true};
+function sortWfComp(col){if(wfCompSort.col===col)wfCompSort.asc=!wfCompSort.asc;else{wfCompSort.col=col;wfCompSort.asc=true;}renderWfCompare();}
 function renderBillTable(){
   sortIcons('bs',billSort.col,billSort.asc,16);
   const q=(document.getElementById('billSearch').value||'').toLowerCase().trim();
@@ -4175,17 +4177,44 @@ function renderWfCompare(){
   });
   // Only show people who were Benched or Ramping in at least one month
   const wfcq=(searchWfComp||'').toLowerCase();
-  const trackedCodes = Object.keys(codeMap).filter(code=>{
+  let trackedCodes = Object.keys(codeMap).filter(code=>{
     const hasStatus = Object.values(codeMap[code].statuses).some(s=>s.startsWith('Benched')||s.startsWith('Ramping'));
     const matchSearch = !wfcq || codeMap[code].name.toLowerCase().includes(wfcq) || code.toLowerCase().includes(wfcq);
     return hasStatus && matchSearch;
   });
 
+  // Sorting: col 0=Code, 1=Name, 2=Practice, 3..(3+months-1)=month status, last=Action
+  const wfCompColCount = 3 + wfCompMonths.length + 1;
+  if(wfCompSort.col>=0){
+    const statusRank=s=>{
+      if(!s || s==='—') return -1;
+      const pct = parseFloat(s.replace(/[^0-9.]/g,''));
+      return isNaN(pct) ? -1 : pct;
+    };
+    trackedCodes = [...trackedCodes].sort((a,b)=>{
+      const infoA=codeMap[a], infoB=codeMap[b];
+      let va,vb;
+      if(wfCompSort.col===0){ va=a; vb=b; }
+      else if(wfCompSort.col===1){ va=infoA.name; vb=infoB.name; }
+      else if(wfCompSort.col===2){ va=infoA.practice; vb=infoB.practice; }
+      else if(wfCompSort.col===wfCompColCount-1){ va=infoA.action||''; vb=infoB.action||''; }
+      else{
+        const m = wfCompMonths[wfCompSort.col-3];
+        va = statusRank(infoA.statuses[m]); vb = statusRank(infoB.statuses[m]);
+      }
+      if(typeof va==='number') return wfCompSort.asc ? va-vb : vb-va;
+      return wfCompSort.asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
+  }
+
   document.getElementById('wfCompTableHead').innerHTML = `<tr>
-    <th>Code</th><th>Name</th><th>Practice</th>
-    ${wfCompMonths.map(m=>`<th class="center bl">${m}</th>`).join('')}
-    <th class="bl">Action</th>
+    <th class="sortable" onclick="sortWfComp(0)">Code <span class="sort-icon" id="wfc0">↕</span></th>
+    <th class="sortable" onclick="sortWfComp(1)">Name <span class="sort-icon" id="wfc1">↕</span></th>
+    <th class="sortable" onclick="sortWfComp(2)">Practice <span class="sort-icon" id="wfc2">↕</span></th>
+    ${wfCompMonths.map((m,i)=>`<th class="center bl sortable" onclick="sortWfComp(${3+i})">${m} <span class="sort-icon" id="wfc${3+i}">↕</span></th>`).join('')}
+    <th class="bl sortable" onclick="sortWfComp(${wfCompColCount-1})">Action <span class="sort-icon" id="wfc${wfCompColCount-1}">↕</span></th>
   </tr>`;
+  sortIcons('wfc',wfCompSort.col,wfCompSort.asc,wfCompColCount);
 
   document.getElementById('wfCompTableBody').innerHTML = trackedCodes.length===0
     ? `<tr><td colspan="${2+wfCompMonths.length+1}" class="empty">No benched or ramping resources found</td></tr>`
@@ -5255,7 +5284,16 @@ function renderTeamOverview(){
   const getVal=(e,col)=>[e.code,e.name,e.practice,e.grade,e.fteCw,e.shore,
     e.location,e.yoe,e.iqamaClass,e.directManager,e.joinedDate,e.iqamaDate,e.mlStatus][col]||'';
 
-  const rows=activeML
+  // Resource list also includes resigned resources that have an actual Resigned Date on file
+  // (historical record), even though they're excluded from the active KPI cards above.
+  const resignedWithDate = masterList.filter(ml=>{
+    const matchPractice=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+    const hasResignedDate = !!(ml.resignedDate && ml.resignedDate.toString().trim() && ml.resignedDate.toString().trim().toUpperCase()!=='NA');
+    return isMlResigned(ml) && hasResignedDate && matchPractice;
+  });
+  const tableML = [...activeML, ...resignedWithDate];
+
+  const rows=tableML
     .filter(ml=>!q||(ml.name||'').toLowerCase().includes(q)||(ml.code||'').toLowerCase().includes(q))
     .sort((a,b)=>{
       const va=getVal(a,wfOvSort.col), vb=getVal(b,wfOvSort.col);
