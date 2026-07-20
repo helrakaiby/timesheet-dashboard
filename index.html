@@ -4181,15 +4181,23 @@ function renderWfCompare(){
   // Resolution tracking table — first month vs last month per person
   const firstMonth = wfCompMonths[0], lastMonth = wfCompMonths[wfCompMonths.length-1];
   const firstStats = statsByMonth[0], lastStats = statsByMonth[statsByMonth.length-1];
+  // Build a lookup so an old code (e.g. Q2538) resolves to the same canonical identity
+  // as its current code (e.g. E3808), per Master List's old_id link.
+  const oldToNewCode = {};
+  masterList.forEach(ml=>{ if(ml.oldId) oldToNewCode[ml.oldId] = ml.code; });
+  const canonicalCode = code => oldToNewCode[code] || code;
+
   // Build map of code -> status per month (using all months, not just first/last)
   const codeMap = {};
   statsByMonth.forEach((s,i)=>{
     s.emps.forEach(e=>{
-      if(!codeMap[e.code]) codeMap[e.code] = {name:e.name, practice:e.practice, statuses:{}};
+      const cc = canonicalCode(e.code);
+      if(!codeMap[cc]) codeMap[cc] = {name:e.name, practice:e.practice, statuses:{}};
       const p = calc(e).bpct*100;
       const label = p===0 ? 'Benched 0%' : p<70 ? `Ramping ${p.toFixed(0)}%` : `On target ${p.toFixed(0)}%`;
-      codeMap[e.code].statuses[s.month] = label;
-      codeMap[e.code].action = getLastKnownAction(e.code);
+      codeMap[cc].statuses[s.month] = label;
+      codeMap[cc].name = e.name; codeMap[cc].practice = e.practice;
+      codeMap[cc].action = getLastKnownAction(cc) || getLastKnownAction(e.code);
     });
   });
   // Only show people who were Benched or Ramping in at least one month
@@ -4249,14 +4257,19 @@ function renderWfCompare(){
 function exportWfCompareTable(){
   const wfCompMonths = getWfCompMonths();
   const statsByMonth = wfCompMonths.map(m=>getWfMonthStats(m));
+  const oldToNewCode = {};
+  masterList.forEach(ml=>{ if(ml.oldId) oldToNewCode[ml.oldId] = ml.code; });
+  const canonicalCode = code => oldToNewCode[code] || code;
   const codeMap = {};
   statsByMonth.forEach(s=>{
     s.emps.forEach(e=>{
-      if(!codeMap[e.code]) codeMap[e.code] = {name:e.name, practice:e.practice, statuses:{}};
+      const cc = canonicalCode(e.code);
+      if(!codeMap[cc]) codeMap[cc] = {name:e.name, practice:e.practice, statuses:{}};
       const p = calc(e).bpct*100;
       const label = p===0 ? 'Benched 0%' : p<70 ? `Ramping ${p.toFixed(0)}%` : `On target ${p.toFixed(0)}%`;
-      codeMap[e.code].statuses[s.month] = label;
-      codeMap[e.code].action = getLastKnownAction(e.code);
+      codeMap[cc].statuses[s.month] = label;
+      codeMap[cc].name = e.name; codeMap[cc].practice = e.practice;
+      codeMap[cc].action = getLastKnownAction(cc) || getLastKnownAction(e.code);
     });
   });
   const wfcq=(searchWfComp||'').toLowerCase();
