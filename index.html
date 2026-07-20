@@ -233,6 +233,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     </label>
 
     <span id="savedIndicator" style="display:none;font-size:11px;color:var(--green)">✓ Saved</span>
+    <button onclick="doLogout()" style="background:none;border:0.5px solid var(--border2);border-radius:6px;font-size:11px;color:var(--text2);cursor:pointer;padding:4px 10px" title="Sign out">🔓 Sign Out</button>
   </div>
 </div>
 
@@ -261,6 +262,23 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <button onclick="proceedToDashboard()" style="background:var(--blue);color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
       Proceed to Dashboard →
     </button>
+  </div>
+</div>
+
+<div class="upload-wrap" id="loginScreen" style="display:none">
+  <div class="upload-card" style="max-width:380px">
+    <div class="upload-icon">🔒</div>
+    <div class="upload-title">Sign in to Timesheet Dashboard</div>
+    <div style="margin-top:1.25rem;text-align:left">
+      <label style="font-size:12px;color:var(--text2);font-weight:500">Email</label>
+      <input type="email" id="loginEmail" placeholder="you@company.com" style="width:100%;padding:9px 12px;margin:5px 0 14px;border:0.5px solid var(--border2);border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box">
+      <label style="font-size:12px;color:var(--text2);font-weight:500">Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:9px 12px;margin:5px 0 6px;border:0.5px solid var(--border2);border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div id="loginError" style="color:var(--red);font-size:12px;margin-top:6px;display:none"></div>
+    <div style="margin-top:1rem">
+      <button id="loginSubmitBtn" onclick="doLogin()" style="width:100%;background:var(--blue);color:#fff;border:none;padding:11px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Sign In</button>
+    </div>
   </div>
 </div>
 
@@ -2651,13 +2669,92 @@ function initAllResizers(){
 // ── Supabase Configuration ──────────────────────────────────────────────────
 const SUPABASE_URL = 'https://ghirokwzmvwjlgzonenz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_0XpYBDVacPzlHKUuV0UQTQ_tgZ16DES';
+const AUTH_SESSION_KEY = 'timesheet_dashboard_auth_session';
+
+let authSession = null; // {access_token, refresh_token, expires_at}
+
+function loadAuthSession(){
+  try{
+    const raw = localStorage.getItem(AUTH_SESSION_KEY);
+    authSession = raw ? JSON.parse(raw) : null;
+  } catch(e){ authSession = null; }
+  return authSession;
+}
+function saveAuthSession(session){
+  authSession = session;
+  if(session) localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  else localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginSubmitBtn');
+  errEl.style.display='none';
+  if(!email || !password){ errEl.textContent='Please enter both email and password.'; errEl.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Signing in...';
+  try{
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method:'POST',
+      headers:{ 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if(!res.ok || !data.access_token){
+      errEl.textContent = data.error_description || data.msg || 'Invalid email or password.';
+      errEl.style.display='block';
+      return;
+    }
+    saveAuthSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + (data.expires_in*1000)
+    });
+    document.getElementById('loginScreen').style.display='none';
+    location.reload(); // fresh load now that we're authenticated
+  } catch(e){
+    errEl.textContent = 'Could not reach the server. Please try again.';
+    errEl.style.display='block';
+  } finally {
+    btn.disabled=false; btn.textContent='Sign In';
+  }
+}
+
+async function refreshAuthSessionIfNeeded(){
+  if(!authSession) return false;
+  // Refresh a bit before actual expiry
+  if(Date.now() < authSession.expires_at - 60000) return true;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method:'POST',
+      headers:{ 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ refresh_token: authSession.refresh_token })
+    });
+    const data = await res.json();
+    if(!res.ok || !data.access_token){ saveAuthSession(null); return false; }
+    saveAuthSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + (data.expires_in*1000)
+    });
+    return true;
+  } catch(e){ return false; }
+}
+
+function doLogout(){
+  saveAuthSession(null);
+  location.reload();
+}
 
 async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
+  if(authSession) await refreshAuthSessionIfNeeded();
+  const bearerToken = authSession ? authSession.access_token : SUPABASE_KEY;
   const opts = {
     method,
     headers: {
       'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': `Bearer ${bearerToken}`,
       'Content-Type': 'application/json',
       'Prefer': method==='POST'?'return=representation':'',
       ...extraHeaders
@@ -5461,6 +5558,20 @@ if(tdHdr) tdHdr.addEventListener('change',e=>{
 
 // Try to restore saved session on page load
 window.addEventListener('DOMContentLoaded',async ()=>{
+  // Authentication gate — must be logged in to see anything else
+  loadAuthSession();
+  if(!authSession){
+    document.getElementById('uploadScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='block';
+    return;
+  }
+  const stillValid = await refreshAuthSessionIfNeeded();
+  if(!stillValid){
+    document.getElementById('uploadScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='block';
+    return;
+  }
+
   // Try loading from Supabase first
   document.getElementById('uploadScreen').style.display='none';
   // Show loading indicator
