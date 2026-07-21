@@ -2226,6 +2226,24 @@ function renderMissingTable(){
 }
 
 // ── Month Comparison ───────────────────────────────────────────────────────
+// Wraps a long label into multiple lines (as an array) so Chart.js shows the full
+// text across 2-3 lines instead of truncating it with an ellipsis.
+function wrapLabel(text, maxCharsPerLine=14){
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(w=>{
+    if((current+' '+w).trim().length > maxCharsPerLine && current){
+      lines.push(current.trim());
+      current = w;
+    } else {
+      current = (current+' '+w).trim();
+    }
+  });
+  if(current) lines.push(current);
+  return lines;
+}
+
 function renderCompare(){
   const compMonths = getCompMonths();
   if(compMonths.length<1)return;
@@ -2302,7 +2320,7 @@ function renderCompare(){
   const utilLegend=document.getElementById('compUtilLegend');
   billLegend.innerHTML=utilLegend.innerHTML=compMonths.map((m,i)=>`<div class="leg-item"><div class="leg-dot" style="background:${MONTH_COLORS[i%MONTH_COLORS.length]}"></div>${m}</div>`).join('');
 
-  const labels=allPracticesComp.map(p=>p.length>12?p.slice(0,12)+'…':p);
+  const labels=allPracticesComp.map(p=>wrapLabel(p));
 
   // Destroy old charts
   if(compChartBillInst){compChartBillInst.destroy();compChartBillInst=null;}
@@ -4262,7 +4280,7 @@ function renderWfCompare(){
   wfCompPracChartInst = new Chart(document.getElementById('wfCompPracChart'),{
     type:'bar',
     data:{
-      labels:allPracs.map(p=>p.length>14?p.slice(0,14)+'…':p),
+      labels:allPracs.map(p=>wrapLabel(p)),
       datasets: wfCompMonths.map((m,i)=>({
         label:m,
         data: allPracs.map(p=>statsByMonth[i].benched.filter(e=>normP(e.practice)===p).length),
