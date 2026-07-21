@@ -2272,6 +2272,20 @@ function renderCompare(){
   const statsByMonth=compMonths.map(m=>({month:m,...monthPracticeStats(m)}));
 
   // ── KPI cards (overall per month) ──
+  // Computes closing FTE headcount as of the end of a given month — same logic as
+  // Headcount by Month FTE (Team Overview), just for a single specific month.
+  function getFteHeadcountForMonth(month){
+    return masterList.filter(ml=>{
+      const isFTE=(ml.fteCw||'').toUpperCase()!=='CW';
+      const matchP=sharedFilter.has('__all__')||sharedFilter.has(normP(ml.practice));
+      const jm=parseJoinMonth(ml.joinedDate);
+      const rd=parseJoinMonth(ml.resignedDate);
+      const isResigned=isMlResigned(ml);
+      const joinedByMonth=!jm||jm<=month;
+      if(isResigned) return rd ? (joinedByMonth && rd>month && matchP && isFTE) : false;
+      return joinedByMonth && matchP && isFTE;
+    }).length;
+  }
   function monthOverall(month){
     const emps=filtEmps(employeesByMonth[month]||[], sharedFilter);
     const dupPairs = findMasterListDuplicatePairs(emps);
@@ -2283,7 +2297,7 @@ function renderCompare(){
       const{bc,tc,tot}=calcWithCost(e, overrideCost);
       tBC+=bc;tTC+=tc;tBMD+=e.billableMD;tIPMD+=e.intProjMD;tMD+=tot;
     });
-    return{resources:emps.length-dupPairs.length,bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
+    return{resources:getFteHeadcountForMonth(month),bpct:tTC>0?tBC/tTC:0,upct:tMD>0?(tBMD+tIPMD)/tMD:0,bc:tBC,tc:tTC};
   }
   const overalls=compMonths.map(m=>({month:m,...monthOverall(m)}));
 
