@@ -961,6 +961,7 @@ const ADD_CUSTOM_VALUE = '__add_custom__';
 
 // ── State ──────────────────────────────────────────────────────────────────
 let employeesByMonth={}, masterList=[], allPractices=[], allMonths=[];
+let timesheetActivitiesByMonth={}; // raw per-row activity detail, only populated fresh on upload, synced separately
 let billSort={col:-1,asc:true}, practSort={col:-1,asc:true}, belowSort={col:8,asc:true};
 let billFilter=new Set(['__all__']), practFilter=new Set(['__all__']), compareFilter=new Set(['__all__']);
 let addedCodesByMonth={}, pendingCode=null, pendingRemoveCode=null;
@@ -1437,6 +1438,7 @@ function rebuildTimesheetOnly(raw){
 
   // Rebuild employeesByMonth from new timesheet data using existing mlMap
   const byMonth={};
+  const activitiesByMonth={};
   raw.forEach(r=>{
     const code=(findKey(r,'Employee Code')||'').trim(); if(!code)return;
     const month=(findKey(r,'Month')||'').trim(); if(!month)return;
@@ -1444,6 +1446,11 @@ function rebuildTimesheetOnly(raw){
     const billable=(findKey(r,'Billable')||'').toUpperCase();
     const actType=(findKey(r,'Activity Type')||'').toUpperCase();
     if(!byMonth[month]) byMonth[month]={};
+    if(!activitiesByMonth[month]) activitiesByMonth[month]=[];
+    activitiesByMonth[month].push({
+      code, activityCode:findKey(r,'Activity Code'), activityName:findKey(r,'Activity Name'),
+      activityType:findKey(r,'Activity Type'), billable:findKey(r,'Billable'), utilized:findKey(r,'Utilized')
+    });
     // Use existing mlMap to get cost and practice
     const mlEntry=findMlEntry(code, findKey(r,'Employee Name'));
     const cost=mlEntry?getCost(mlEntry):0;
@@ -1467,6 +1474,7 @@ function rebuildTimesheetOnly(raw){
       byMonth[month][code].activityNames.add(findKey(r,'Activity Name'));
     }
   });
+  Object.keys(activitiesByMonth).forEach(m=>{ timesheetActivitiesByMonth[m]=activitiesByMonth[m]; });
   const updatedMonths = Object.keys(byMonth).sort();
 
   // Merge: replace ONLY the months present in this upload. Any month already in
@@ -1503,7 +1511,7 @@ function rebuildTimesheetOnly(raw){
   if(monthTabsEl) monthTabsEl.style.display=allMonths.length>0?'':'none';
   if(filterSepEl) filterSepEl.style.display=allMonths.length>0?'':'none';
   initDashboard();
-  (async()=>{ await runQueuedSave(); await removeStaleMonthsFromDb(allMonths); })(); // save current data first, THEN clean up stale months — properly sequenced, not racing the natural autosave
+  (async()=>{ await runQueuedSave(); await syncTimesheetActivities(updatedMonths); await removeStaleMonthsFromDb(allMonths); })(); // save current data first, THEN sync raw activity detail, THEN clean up stale months
 }
 
 function parseFile(file){
@@ -1646,10 +1654,16 @@ function buildData(raw,ml){
 
   // Group by month
   const byMonth={};
+  const activitiesByMonth2={};
   raw.forEach(r=>{
     const code=findKey(r,'Employee ID')||findKey(r,'Employee Code'); if(!code)return;
     const month=findKey(r,'Month')||'Unknown';
     if(!byMonth[month]) byMonth[month]={};
+    if(!activitiesByMonth2[month]) activitiesByMonth2[month]=[];
+    activitiesByMonth2[month].push({
+      code, activityCode:findKey(r,'Activity Code'), activityName:findKey(r,'Activity Name'),
+      activityType:findKey(r,'Activity Type'), billable:findKey(r,'Billable'), utilized:findKey(r,'Utilized')
+    });
     const map=byMonth[month];
     const billable=findKey(r,'Billable').toUpperCase();
     const utilized=findKey(r,'Utilized').toUpperCase();
@@ -1678,6 +1692,7 @@ function buildData(raw,ml){
   // Sort months
   allMonths=Object.keys(byMonth).sort();
   employeesByMonth={};
+  timesheetActivitiesByMonth = activitiesByMonth2;
   allMonths.forEach(m=>{
     employeesByMonth[m]=Object.values(byMonth[m]).map(e=>({...e,activityNames:[...(e.activityNames||new Set())]})).sort((a,b)=>a.practice.localeCompare(b.practice)||a.name.localeCompare(b.name));
   });
@@ -1719,7 +1734,7 @@ function buildData(raw,ml){
   // Duplicates now stay as separate rows — no silent auto-delete. They're handled by the
   // marking/cost/headcount system in Billability Summary and Non Compliant instead.
   initDashboard();
-  (async()=>{ await runQueuedSave(); await removeStaleMonthsFromDb(allMonths); })(); // save current data first, THEN clean up stale months — properly sequenced, not racing the natural autosave
+  (async()=>{ await runQueuedSave(); await syncTimesheetActivities(allMonths); await removeStaleMonthsFromDb(allMonths); })(); // save current data first, THEN sync raw activity detail, THEN clean up stale months
 }
 
 function initDashboard(){
@@ -2835,6 +2850,27 @@ function pgNotIn(field, values){
 // Calling this from general autosave was the root cause of months getting silently deleted
 // as a side-effect of unrelated actions (e.g. fixing a KPI card) whenever a browser tab's
 // in-memory month list didn't match reality for any reason.
+// Explicitly syncs raw per-row Timesheet activity detail (Activity Code/Name/Type, Billable,
+// Utilized) for whichever months were just uploaded. Like removeStaleMonthsFromDb, this is
+// intentionally NOT part of the automatic autosave — it only runs right after an actual
+// Timesheet upload, since re-syncing potentially thousands of raw rows on every small edit
+// (e.g. fixing a KPI, tagging an action) would be wasteful and pointless.
+async function syncTimesheetActivities(months){
+  for(const m of months){
+    try{
+      const rows = timesheetActivitiesByMonth[m] || [];
+      await sbFetch(`timesheet_activities?month=eq.${m}`, 'DELETE');
+      if(rows.length){
+        const payload = rows.map(r=>({
+          code:r.code, month:m, activity_code:r.activityCode||'', activity_name:r.activityName||'',
+          activity_type:r.activityType||'', billable:r.billable||'', utilized:r.utilized||''
+        }));
+        await sbFetch('timesheet_activities', 'POST', payload, {'Prefer':'return=minimal'});
+      }
+    } catch(e){ console.error(`❌ Timesheet activities sync failed for month ${m}:`, e.message); }
+  }
+}
+
 async function removeStaleMonthsFromDb(currentMonths){
   try{
     const monthRows = await sbFetch('employees?select=month');
