@@ -5202,9 +5202,10 @@ function renderCostAnalysis(){
     const diff=prevTotal!==null?total-prevTotal:null;
     const prevMonth=i>0?costMonths[i-1]:null;
 
-    // Build auto justification
+    // Build auto justification — independent of whether there's a previous month to
+    // diff cost against, so the first visible month in the range still shows notes.
     let notes=[];
-    if(diff!==null && diff!==0){
+    {
       // IQAMA moves this month
       const iqamaMoves=masterList.filter(ml=>{
         const im=parseIqamaMonth(ml.iqamaDate);
