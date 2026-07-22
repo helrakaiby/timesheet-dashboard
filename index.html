@@ -1449,7 +1449,8 @@ function rebuildTimesheetOnly(raw){
     if(!activitiesByMonth[month]) activitiesByMonth[month]=[];
     activitiesByMonth[month].push({
       code, activityCode:findKey(r,'Activity Code'), activityName:findKey(r,'Activity Name'),
-      activityType:findKey(r,'Activity Type'), billable:findKey(r,'Billable'), utilized:findKey(r,'Utilized')
+      activityType:findKey(r,'Activity Type'), billable:findKey(r,'Billable'), utilized:findKey(r,'Utilized'),
+      days, costCenter:findKey(r,'Cost Center'), remarks:findKey(r,'Remarks')
     });
     // Use existing mlMap to get cost and practice
     const mlEntry=findMlEntry(code, findKey(r,'Employee Name'));
@@ -1662,7 +1663,8 @@ function buildData(raw,ml){
     if(!activitiesByMonth2[month]) activitiesByMonth2[month]=[];
     activitiesByMonth2[month].push({
       code, activityCode:findKey(r,'Activity Code'), activityName:findKey(r,'Activity Name'),
-      activityType:findKey(r,'Activity Type'), billable:findKey(r,'Billable'), utilized:findKey(r,'Utilized')
+      activityType:findKey(r,'Activity Type'), billable:findKey(r,'Billable'), utilized:findKey(r,'Utilized'),
+      days:findNum(r,'Number Of Days'), costCenter:findKey(r,'Cost Center'), remarks:findKey(r,'Remarks')
     });
     const map=byMonth[month];
     const billable=findKey(r,'Billable').toUpperCase();
@@ -2863,7 +2865,8 @@ async function syncTimesheetActivities(months){
       if(rows.length){
         const payload = rows.map(r=>({
           code:r.code, month:m, activity_code:r.activityCode||'', activity_name:r.activityName||'',
-          activity_type:r.activityType||'', billable:r.billable||'', utilized:r.utilized||''
+          activity_type:r.activityType||'', billable:r.billable||'', utilized:r.utilized||'',
+          number_of_days:r.days||0, cost_center:r.costCenter||'', remarks:r.remarks||''
         }));
         await sbFetch('timesheet_activities', 'POST', payload, {'Prefer':'return=minimal'});
       }
