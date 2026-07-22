@@ -742,8 +742,8 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(6)" data-wfov="6" id="wth-6" style="min-width:70px;width:80px">Location <span class="sort-icon" id="ws6">↕</span><div class="col-resizer" data-th="wth-6"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(7)" data-wfov="7" id="wth-7" style="min-width:40px;width:50px">YoE <span class="sort-icon" id="ws7">↕</span><div class="col-resizer" data-th="wth-7"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(8)" data-wfov="8" id="wth-8" style="min-width:120px;width:140px">Classification <span class="sort-icon" id="ws8">↕</span><div class="col-resizer" data-th="wth-8"></div></th>
-              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(9)" data-wfov="9" id="wth-9" style="min-width:80px;width:90px">Resigned Date <span class="sort-icon" id="ws9">↕</span><div class="col-resizer" data-th="wth-9"></div></th>
-              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(10)" data-wfov="10" id="wth-10" style="min-width:80px;width:90px">Joined Date <span class="sort-icon" id="ws10">↕</span><div class="col-resizer" data-th="wth-10"></div></th>
+              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(9)" data-wfov="9" id="wth-9" style="min-width:80px;width:90px">Joined Date <span class="sort-icon" id="ws9">↕</span><div class="col-resizer" data-th="wth-9"></div></th>
+              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(10)" data-wfov="10" id="wth-10" style="min-width:80px;width:90px">Resigned Date <span class="sort-icon" id="ws10">↕</span><div class="col-resizer" data-th="wth-10"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(11)" data-wfov="11" id="wth-11" style="min-width:80px;width:90px">IQAMA Date <span class="sort-icon" id="ws11">↕</span><div class="col-resizer" data-th="wth-11"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(12)" data-wfov="12" id="wth-12" style="min-width:70px;width:80px">Status <span class="sort-icon" id="ws12">↕</span><div class="col-resizer" data-th="wth-12"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(13)" data-wfov="13" id="wth-13" style="min-width:120px;width:160px">Employee System Name <span class="sort-icon" id="ws13">↕</span><div class="col-resizer" data-th="wth-13"></div></th>
@@ -5504,7 +5504,7 @@ function renderTeamOverview(){
   // Resizers initialized in switchTab
 
   const getVal=(e,col)=>[e.code,e.name,e.practice,e.grade,e.fteCw,e.shore,
-    e.location,e.yoe,e.iqamaClass,e.resignedDate,e.joinedDate,e.iqamaDate,e.mlStatus,e.systemName][col]||'';
+    e.location,e.yoe,e.iqamaClass,e.joinedDate,e.resignedDate,e.iqamaDate,e.mlStatus,e.systemName][col]||'';
 
   // Resource list also includes resigned resources that have an actual Resigned Date on file
   // (historical record), even though they're excluded from the active KPI cards above.
@@ -5538,8 +5538,8 @@ function renderTeamOverview(){
       <td data-wfov="6" style="${tdS};color:var(--text2)">${ml.location||'—'}</td>
       <td data-wfov="7" style="${tdS};text-align:center">${ml.yoe||'—'}</td>
       <td data-wfov="8" style="${tdS};color:var(--text2)">${ml.iqamaClass||'—'}</td>
-      <td data-wfov="9" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.resignedDate)}</td>
-      <td data-wfov="10" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.joinedDate)}</td>
+      <td data-wfov="9" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.joinedDate)}</td>
+      <td data-wfov="10" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.resignedDate)}</td>
       <td data-wfov="11" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.iqamaDate)}</td>
       <td data-wfov="12" style="${tdS}">${ml.mlStatus||'—'}</td>
       <td data-wfov="13" style="${tdS};color:var(--text2)">${ml.systemName||'—'}</td>
@@ -5604,8 +5604,8 @@ function exportTeamOverview(){
       'Code':ml.code,'Name':ml.name,'Practice':ml.practice,
       'Grade':ml.grade||'','FTE/CW':ml.fteCw||'','Shore':ml.shore||'',
       'Location':ml.location||'','YoE':ml.yoe||'',
-      'Classification':ml.iqamaClass||'','Resigned Date':formatJoinedDate(ml.resignedDate),
-      'Joined Date':formatJoinedDate(ml.joinedDate),
+      'Classification':ml.iqamaClass||'','Joined Date':formatJoinedDate(ml.joinedDate),
+      'Resigned Date':formatJoinedDate(ml.resignedDate),
       'IQAMA Date':formatJoinedDate(ml.iqamaDate),'Status':ml.mlStatus||'','Employee System Name':ml.systemName||''
     }));
   xlsxExport(rows,'Team Overview','Team-Overview');
