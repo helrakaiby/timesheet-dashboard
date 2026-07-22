@@ -828,9 +828,15 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
       <div class="tcard"><div class="tscroll">
         <table>
           <thead><tr>
-            <th>#</th><th>Code</th><th>Name</th><th>Practice</th>
-            <th>Country</th><th>Monthly cost</th><th>Billable MD</th>
-            <th>Total MD</th><th>Status</th>
+            <th class="sortable" onclick="sortNotEntered(0)">#<span class="sort-icon" id="ne0">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(1)">Code <span class="sort-icon" id="ne1">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(2)">Name <span class="sort-icon" id="ne2">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(3)">Practice <span class="sort-icon" id="ne3">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(4)">Country <span class="sort-icon" id="ne4">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(5)">Monthly cost <span class="sort-icon" id="ne5">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(6)">Billable MD <span class="sort-icon" id="ne6">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(7)">Total MD <span class="sort-icon" id="ne7">↕</span></th>
+            <th class="sortable" onclick="sortNotEntered(8)">Status <span class="sort-icon" id="ne8">↕</span></th>
           </tr></thead>
           <tbody id="notEnteredBody"></tbody>
         </table>
@@ -1794,6 +1800,8 @@ function sortIcons(prefix,col,asc,n){
 // ── Billability table ──────────────────────────────────────────────────────
 function sortBill(col){if(_resizeDragging)return;if(billSort.col===col)billSort.asc=!billSort.asc;else{billSort.col=col;billSort.asc=true;}renderBillTable();}
 let wfCompSort={col:-1,asc:true};
+let notEnteredSort={col:-1,asc:true};
+function sortNotEntered(col){if(notEnteredSort.col===col)notEnteredSort.asc=!notEnteredSort.asc;else{notEnteredSort.col=col;notEnteredSort.asc=true;}renderMissingTable();}
 function sortWfComp(col){if(wfCompSort.col===col)wfCompSort.asc=!wfCompSort.asc;else{wfCompSort.col=col;wfCompSort.asc=true;}renderWfCompare();}
 function renderBillTable(){
   sortIcons('bs',billSort.col,billSort.asc,16);
@@ -2181,6 +2189,15 @@ function renderMissingTable(){
     return (!mneq||(e.name.toLowerCase().includes(mneq)||e.code.toLowerCase().includes(mneq)));
   });
   document.getElementById('notEnteredCount').textContent = notEntered.length;
+  sortIcons('ne',notEnteredSort.col,notEnteredSort.asc,9);
+  if(notEnteredSort.col>=0){
+    notEntered.sort((a,b)=>{
+      const va=[0,a.code,a.name,a.practice,a.country,a.cost,a.billableMD,calc(a).tot,a.status][notEnteredSort.col];
+      const vb=[0,b.code,b.name,b.practice,b.country,b.cost,b.billableMD,calc(b).tot,b.status][notEnteredSort.col];
+      const cmp = typeof va==='number' ? va-vb : String(va||'').localeCompare(String(vb||''),undefined,{numeric:true});
+      return notEnteredSort.asc ? cmp : -cmp;
+    });
+  }
   document.getElementById('notEnteredBody').innerHTML = notEntered.length===0
     ? '<tr><td colspan="9" class="empty">No non-compliant resources ✅</td></tr>'
     : notEntered.map((e,i)=>{
