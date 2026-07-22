@@ -3806,10 +3806,12 @@ function renderWorkforce(){
   (removedByMonth[wfMonth]||[]).forEach(r=>{
     if(r.removeAction && !getAction(r.code, wfMonth)) setAction(r.code, wfMonth, r.removeAction);
   });
-  const actionMap = {};
+  const actionMap={}, actionNamesMap={};
   chartEmps.forEach(e=>{
     const a = getAction(e.code, wfMonth) || 'No action set';
     actionMap[a] = (actionMap[a]||0)+1;
+    if(!actionNamesMap[a]) actionNamesMap[a]=[];
+    actionNamesMap[a].push(e.name);
   });
   // Order: known bucket options first (in their defined order), then any custom ones, then "No action set" last
   const orderedActionLabels = [
@@ -3822,22 +3824,23 @@ function renderWorkforce(){
     const count = actionMap[label];
     const isNone = label==='No action set';
     const color = isNone ? '#888' : '#1D9E75';
+    const names = (actionNamesMap[label]||[]).join(', ');
     return`<div class="prac-row-wf" style="align-items:flex-start">
       <div class="action-label-wf" title="${label}" style="${isNone?'color:var(--text3)':''}">${label}</div>
       <div class="prac-track-wf" style="margin-top:1px">
-        <div class="prac-fill-wf" style="width:${Math.round(count/maxA*100)}%;background:${color}">${count}</div>
+        <div class="prac-fill-wf" title="${names}" style="width:${Math.round(count/maxA*100)}%;background:${color}">${count}</div>
       </div>
     </div>`;
   }).join('');
 
   // By Skills chart — treat each employee's full cleaned skill string as ONE entry
   // (matches what the table shows, instead of splitting into fragments)
-  const skillOnMap={}, skillOffMap={};
+  const skillOnMap={}, skillOffMap={}, skillOnNamesMap={}, skillOffNamesMap={};
   chartEmps.forEach(e=>{
     const shore=(getShore(e)||'').toLowerCase();
     const sk=getSkills(e)||'Unknown';
-    if(shore==='offshore') skillOffMap[sk]=(skillOffMap[sk]||0)+1;
-    else skillOnMap[sk]=(skillOnMap[sk]||0)+1;
+    if(shore==='offshore'){ skillOffMap[sk]=(skillOffMap[sk]||0)+1; (skillOffNamesMap[sk]=skillOffNamesMap[sk]||[]).push(e.name); }
+    else { skillOnMap[sk]=(skillOnMap[sk]||0)+1; (skillOnNamesMap[sk]=skillOnNamesMap[sk]||[]).push(e.name); }
   });
   const allSkills=[...new Set([...Object.keys(skillOffMap),...Object.keys(skillOnMap)])];
   allSkills.sort((a,b)=>((skillOffMap[b]||0)+(skillOnMap[b]||0))-((skillOffMap[a]||0)+(skillOnMap[a]||0)));
@@ -3845,11 +3848,12 @@ function renderWorkforce(){
   document.getElementById('wf-skills-chart').innerHTML = allSkills.slice(0,12).map(sk=>{
     const off=skillOffMap[sk]||0, on=skillOnMap[sk]||0;
     const offW=Math.round(off/maxSk*100), onW=Math.round(on/maxSk*100);
+    const offNames=(skillOffNamesMap[sk]||[]).join(', '), onNames=(skillOnNamesMap[sk]||[]).join(', ');
     return`<div class="off-row-wf">
       <div class="off-label-wf" title="${sk}">${sk}</div>
       <div class="off-track-wf">
-        ${off>0?`<div class="off-seg-wf" style="width:${offW}%;background:#185FA5">${off}</div>`:''}
-        ${on>0?`<div class="off-seg-wf" style="width:${onW}%;background:#639922">${on}</div>`:''}
+        ${off>0?`<div class="off-seg-wf" title="${offNames}" style="width:${offW}%;background:#185FA5">${off}</div>`:''}
+        ${on>0?`<div class="off-seg-wf" title="${onNames}" style="width:${onW}%;background:#639922">${on}</div>`:''}
       </div>
     </div>`;
   }).join('');
