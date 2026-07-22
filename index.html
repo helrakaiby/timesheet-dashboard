@@ -720,7 +720,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <!-- Resource list -->
     <div class="tcard">
       <div class="sec-header" style="padding:.9rem 1rem 0;display:flex;align-items:center;justify-content:space-between">
-        <span class="sec-title">Resource list</span>
+        <span class="sec-title">Resource list <span id="wfovTotalCount" style="font-weight:400;color:var(--text2);font-size:12px"></span></span>
         <div style="display:flex;align-items:center;gap:8px">
           <input type="text" id="wfovSearch" placeholder="🔍 Search name or code…"
             style="border:0.5px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit"
@@ -746,6 +746,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(10)" data-wfov="10" id="wth-10" style="min-width:80px;width:90px">Joined Date <span class="sort-icon" id="ws10">↕</span><div class="col-resizer" data-th="wth-10"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(11)" data-wfov="11" id="wth-11" style="min-width:80px;width:90px">IQAMA Date <span class="sort-icon" id="ws11">↕</span><div class="col-resizer" data-th="wth-11"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(12)" data-wfov="12" id="wth-12" style="min-width:70px;width:80px">Status <span class="sort-icon" id="ws12">↕</span><div class="col-resizer" data-th="wth-12"></div></th>
+              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(13)" data-wfov="13" id="wth-13" style="min-width:120px;width:140px">System Name <span class="sort-icon" id="ws13">↕</span><div class="col-resizer" data-th="wth-13"></div></th>
             </tr>
           </thead>
           <tbody id="wfovBody"></tbody>
@@ -1407,6 +1408,7 @@ function updateTeamDataOnly(file){
         iqamaDate    :findKey(row,'IQAMA Action Date'),
         grade        :findKey(row,'Grade'),
         fteCw        :findKey(row,'FTE/CW'),
+        systemName   :findKey(row,'Employee System Name'),
         location     :findKey(row,'Location'),
         yoe          :findKey(row,'YoE'),
         directManager:findKey(row,'Direct Manager'),
@@ -1629,6 +1631,7 @@ function buildData(raw,ml){
       iqamaDate    :findKey(r,'IQAMA Action Date'),
       grade        :findKey(r,'Grade'),
       fteCw        :findKey(r,'FTE/CW'),
+      systemName   :findKey(r,'Employee System Name'),
       location     :findKey(r,'Location'),
       yoe          :findKey(r,'YoE'),
       directManager:findKey(r,'Direct Manager'),
@@ -2854,7 +2857,7 @@ async function saveToSupabase(state){
         code:m.code, name:m.name||'', old_id:m.oldId||'', practice:m.practice||'', shore:m.shore||'',
         cost:m.cost||0, onshore:m.onshore||0, offshore:m.offshore||0, seniority:m.seniority||'',
         skills:m.skills||'', ml_status:m.mlStatus||'Active', joined_date:m.joinedDate||'',
-        pas_profile:m.pasProfile||'', iqama_date:m.iqamaDate||'', grade:m.grade||'', fte_cw:m.fteCw||'', po_cost:m.poCost||0,
+        pas_profile:m.pasProfile||'', iqama_date:m.iqamaDate||'', grade:m.grade||'', fte_cw:m.fteCw||'', po_cost:m.poCost||0, system_name:m.systemName||'',
         location:m.location||'', yoe:m.yoe||'', direct_manager:m.directManager||'', iqama_class:m.iqamaClass||'',
         resigned_date:m.resignedDate||''
       }));
@@ -2957,7 +2960,7 @@ async function loadFromSupabase(){
       cost:Number(r.cost)||0, onshore:Number(r.onshore)||0, offshore:Number(r.offshore)||0,
       seniority:r.seniority||'', skills:r.skills||'', mlStatus:r.ml_status||'Active',
       joinedDate:r.joined_date||'', pasProfile:r.pas_profile||'', iqamaDate:r.iqama_date||'',
-      grade:r.grade||'', fteCw:r.fte_cw||'', poCost:Number(r.po_cost)||0, location:r.location||'', yoe:r.yoe||'',
+      grade:r.grade||'', fteCw:r.fte_cw||'', poCost:Number(r.po_cost)||0, systemName:r.system_name||'', location:r.location||'', yoe:r.yoe||'',
       directManager:r.direct_manager||'', iqamaClass:r.iqama_class||'', resignedDate:r.resigned_date||''
     }));
 
@@ -5455,14 +5458,14 @@ function renderTeamOverview(){
   // Static headers used — no dynamic sortTh needed
 
   // Update sort icons on static headers
-  for(let i=0;i<=12;i++){
+  for(let i=0;i<=13;i++){
     const el=document.getElementById(`ws${i}`);
     if(el) el.textContent=wfOvSort.col===i?(wfOvSort.asc?'↑':'↓'):'↕';
   }
   // Resizers initialized in switchTab
 
   const getVal=(e,col)=>[e.code,e.name,e.practice,e.grade,e.fteCw,e.shore,
-    e.location,e.yoe,e.iqamaClass,e.resignedDate,e.joinedDate,e.iqamaDate,e.mlStatus][col]||'';
+    e.location,e.yoe,e.iqamaClass,e.resignedDate,e.joinedDate,e.iqamaDate,e.mlStatus,e.systemName][col]||'';
 
   // Resource list also includes resigned resources that have an actual Resigned Date on file
   // (historical record), even though they're excluded from the active KPI cards above.
@@ -5481,8 +5484,10 @@ function renderTeamOverview(){
       return wfOvSort.asc?cmp:-cmp;
     });
 
+  document.getElementById('wfovTotalCount').textContent = `(${rows.length} total)`;
+
   document.getElementById('wfovBody').innerHTML=rows.length===0
-    ?`<tr><td colspan="13" class="empty">No resources found</td></tr>`
+    ?`<tr><td colspan="14" class="empty">No resources found</td></tr>`
     :rows.map((ml,i)=>`<tr>
       <td style="${tdS};color:var(--text2)">${i+1}</td>
       <td data-wfov="0" style="${tdS};font-family:monospace;font-size:10px">${ml.code}</td>
@@ -5498,6 +5503,7 @@ function renderTeamOverview(){
       <td data-wfov="10" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.joinedDate)}</td>
       <td data-wfov="11" style="${tdS};color:var(--text2)">${formatJoinedDate(ml.iqamaDate)}</td>
       <td data-wfov="12" style="${tdS}">${ml.mlStatus||'—'}</td>
+      <td data-wfov="13" style="${tdS};color:var(--text2)">${ml.systemName||'—'}</td>
     </tr>`).join('');
 }
 
@@ -5561,7 +5567,7 @@ function exportTeamOverview(){
       'Location':ml.location||'','YoE':ml.yoe||'',
       'Classification':ml.iqamaClass||'','Resigned Date':formatJoinedDate(ml.resignedDate),
       'Joined Date':formatJoinedDate(ml.joinedDate),
-      'IQAMA Date':formatJoinedDate(ml.iqamaDate),'Status':ml.mlStatus||''
+      'IQAMA Date':formatJoinedDate(ml.iqamaDate),'Status':ml.mlStatus||'','System Name':ml.systemName||''
     }));
   xlsxExport(rows,'Team Overview','Team-Overview');
 }
