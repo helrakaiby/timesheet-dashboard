@@ -746,7 +746,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(10)" data-wfov="10" id="wth-10" style="min-width:80px;width:90px">Joined Date <span class="sort-icon" id="ws10">↕</span><div class="col-resizer" data-th="wth-10"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(11)" data-wfov="11" id="wth-11" style="min-width:80px;width:90px">IQAMA Date <span class="sort-icon" id="ws11">↕</span><div class="col-resizer" data-th="wth-11"></div></th>
               <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(12)" data-wfov="12" id="wth-12" style="min-width:70px;width:80px">Status <span class="sort-icon" id="ws12">↕</span><div class="col-resizer" data-th="wth-12"></div></th>
-              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(13)" data-wfov="13" id="wth-13" style="min-width:120px;width:140px">System Name <span class="sort-icon" id="ws13">↕</span><div class="col-resizer" data-th="wth-13"></div></th>
+              <th class="sortable" onclick="if(!_resizeDragging)sortWfOv(13)" data-wfov="13" id="wth-13" style="min-width:120px;width:160px">Employee System Name <span class="sort-icon" id="ws13">↕</span><div class="col-resizer" data-th="wth-13"></div></th>
             </tr>
           </thead>
           <tbody id="wfovBody"></tbody>
@@ -5567,7 +5567,7 @@ function exportTeamOverview(){
       'Location':ml.location||'','YoE':ml.yoe||'',
       'Classification':ml.iqamaClass||'','Resigned Date':formatJoinedDate(ml.resignedDate),
       'Joined Date':formatJoinedDate(ml.joinedDate),
-      'IQAMA Date':formatJoinedDate(ml.iqamaDate),'Status':ml.mlStatus||'','System Name':ml.systemName||''
+      'IQAMA Date':formatJoinedDate(ml.iqamaDate),'Status':ml.mlStatus||'','Employee System Name':ml.systemName||''
     }));
   xlsxExport(rows,'Team Overview','Team-Overview');
 }
