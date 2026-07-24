@@ -5540,15 +5540,33 @@ function execMonthStats(month){
   const dupPairs = findMasterListDuplicatePairs(emps);
   const dupPartner = {};
   dupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
-  let bc=0,tc=0,bMD=0,nbMD=0,ipMD=0,tMD=0,benched=0;
+  let bc=0,tc=0,bMD=0,nbMD=0,ipMD=0,tMD=0;
   emps.forEach(e=>{
     const overrideCost = dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
     const r = calcWithCost(e, overrideCost);
     bc+=r.bc; tc+=r.tc; bMD+=e.billableMD; nbMD+=e.nonBillableMD; ipMD+=e.intProjMD; tMD+=r.tot;
-    if(e.billableMD===0) benched++;
   });
-  return { hc: emps.length-dupPairs.length, bc, tc, bMD, nbMD, ipMD, tMD,
-    bpct: tMD>0?bMD/tMD:0, benched, emps, dupPartner };
+  // Build a proper per-PERSON list: one representative per duplicate pair, with their
+  // billable days COMBINED across both codes (so a person who worked under either code
+  // that month is correctly not counted as benched, unlike checking one row in isolation).
+  const seenPair = new Set();
+  const people = [];
+  emps.forEach(e=>{
+    const partner = dupPartner[e.code];
+    if(partner){
+      const pairKey = [e.code, partner].sort().join('|');
+      if(seenPair.has(pairKey)) return;
+      seenPair.add(pairKey);
+      const partnerEmp = emps.find(x=>x.code===partner);
+      const combinedBillableMD = e.billableMD + (partnerEmp?partnerEmp.billableMD:0);
+      people.push({...e, billableMD: combinedBillableMD});
+    } else {
+      people.push(e);
+    }
+  });
+  const benched = people.filter(p=>p.billableMD===0).length;
+  return { hc: people.length, bc, tc, bMD, nbMD, ipMD, tMD,
+    bpct: tc>0?bc/tc:0, benched, emps, people, dupPartner };
 }
 
 function execQStats(monthArr, monthStats){
@@ -5558,7 +5576,7 @@ function execQStats(monthArr, monthStats){
     const s=monthStats[m];
     return {bc:a.bc+s.bc, tc:a.tc+s.tc, bMD:a.bMD+s.bMD, tMD:a.tMD+s.tMD, hc:a.hc+s.hc, n:a.n+1};
   },{bc:0,tc:0,bMD:0,tMD:0,hc:0,n:0});
-  return { bc:t.bc, tc:t.tc, bpct:t.tMD>0?t.bMD/t.tMD:0, avgHc:Math.round(t.hc/t.n) };
+  return { bc:t.bc, tc:t.tc, bpct:t.tc>0?t.bc/t.tc:0, avgHc:Math.round(t.hc/t.n) };
 }
 
 function renderExecSummary(){
@@ -5696,7 +5714,7 @@ function renderExecSummary(){
   {
     const lf = monthStats[latestFinal];
     const skillOnMap={}, skillOffMap={}, benchOnMap={}, benchOffMap={};
-    lf.emps.forEach(e=>{
+    lf.people.forEach(e=>{
       const ml = findMlEntry(e.code, e.name);
       const shore = (ml?.shore||'').toLowerCase();
       const sk = getSkills(e) || 'Unknown';
