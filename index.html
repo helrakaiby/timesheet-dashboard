@@ -996,6 +996,25 @@ function statusPill(s){
   return`<span class="pill ${c}" style="font-size:10px">${s||''}</span>`;
 }
 function getCost(m){return ((m.shore||'').toLowerCase()==='offshore')?(m.offshore||0):(m.onshore||0);}
+// Monthly-row cost decided purely by the ID PREFIX on that month's timesheet row:
+//   E or L prefix -> onshore PAS rate;  any other prefix (Q, I, R, T, Y, ...) -> offshore PAS rate.
+// Rates come from the PAS Roles sheet per the person's PAS Profile. This makes history correct
+// automatically across offshore->onshore ID transitions (old Q months stay offshore, new E months
+// are onshore) with no dependence on IQAMA dates or the shore column.
+// Fallbacks: FTE without a PAS profile/rate match -> flat PAS Cost Price (getCost); CW -> unchanged (getCost).
+function getRowCost(rowCode, mlEntry){
+  if(!mlEntry) return 0;
+  if((mlEntry.fteCw||'').toUpperCase()!=='CW'){
+    const rates = pasRoles[(mlEntry.pasProfile||'').trim()];
+    if(rates){
+      const uc=(rowCode||'').trim().toUpperCase();
+      const onshore = uc.startsWith('E') || uc.startsWith('L');
+      const r = onshore?rates.onshore:rates.offshore;
+      if(r) return r;
+    }
+  }
+  return getCost(mlEntry);
+}
 function findKey(r,name){const k=Object.keys(r).find(k=>k.trim().toLowerCase()===name.toLowerCase());return k?String(r[k]||'').trim():'';}
 function findNum(r,name){const k=Object.keys(r).find(k=>k.trim().toLowerCase()===name.toLowerCase());return k?(parseFloat(r[k])||0):0;}
 
@@ -1454,7 +1473,7 @@ function rebuildTimesheetOnly(raw){
     });
     // Use existing mlMap to get cost and practice
     const mlEntry=findMlEntry(code, findKey(r,'Employee Name'));
-    const cost=mlEntry?getCost(mlEntry):0;
+    const cost=mlEntry?getRowCost(code, mlEntry):0;
     // If we already know this employee's practice (from a prior upload / manual edit), keep it as-is.
     // Otherwise fall back to Master List, then to the Timesheet file's own Practice column.
     const practice=existingPracticeByCode[code]
@@ -1673,7 +1692,7 @@ function buildData(raw,ml){
     const days=findNum(r,'Number Of Days');
     const empName=findKey(r,'Employee Name');
     const mlEntry=findMlEntry(code, empName);
-    const cost=mlEntry?getCost(mlEntry):0;
+    const cost=mlEntry?getRowCost(code, mlEntry):0;
     // Practice: from Master List if found, else from Timesheet
     const practice=mlEntry?normP(mlEntry.practice):normP(findKey(r,'Practice'));
     if(!map[code]) map[code]={code,name:empName,practice,
