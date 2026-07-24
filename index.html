@@ -778,7 +778,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
           <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem">Q1 2026 · Jan — Mar <span id="exec-q1-badge"></span></div>
           <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">The foundation</div>
           <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-q1-body">—</div>
-          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q1-kpis"></div>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q1-kpis"></div>
           <div id="exec-q1-bars" style="margin-bottom:.25rem"></div>
         </div>
       </div>
@@ -790,7 +790,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
           <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem">Q2 2026 · Apr — Jun <span id="exec-q2-badge"></span></div>
           <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">The turning point</div>
           <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-q2-body">—</div>
-          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q2-kpis"></div>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q2-kpis"></div>
           <div id="exec-q2-bars" style="margin-bottom:.5rem"></div>
           <div style="border-top:0.5px solid var(--border);padding-top:.6rem;margin-top:.5rem">
             <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:.4rem">Practice breakdown — latest final month</div>
@@ -822,7 +822,8 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
           <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem" id="exec-q3-label">Q3 2026 · in progress</div>
           <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">The current picture</div>
           <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-q3-body">—</div>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q3-kpis"></div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q3-kpis"></div>
+          <div id="exec-q3-table" style="margin-bottom:.5rem"></div>
           <div style="font-size:10px;color:#854f0b;background:#faeeda;padding:6px 10px;border-radius:6px" id="exec-q3-note"></div>
         </div>
       </div>
@@ -1330,6 +1331,7 @@ function refreshShared(){
   if(document.getElementById('tab-wfcompare').classList.contains('active'))renderWfCompare();
   if(document.getElementById('tab-costanalysis').classList.contains('active'))renderCostAnalysis();
   if(document.getElementById('tab-teamoverview').classList.contains('active'))renderTeamOverview();
+  if(document.getElementById('tab-execsummary').classList.contains('active'))renderExecSummary();
 }
 function buildDD(dropId,fsName,labelId){
   const fs=getFS(fsName);
@@ -3104,16 +3106,29 @@ async function saveToSupabase(state){
 
 async function loadFromSupabase(){
   try{
-    const [mlRows, empRows, waRows, waOptRows, prRows, appRows, remRows] = await Promise.all([
+    const [mlRows, empRows, waRows, waOptRows, prRows, appRows, remRows, actRows] = await Promise.all([
       sbFetch('master_list?select=*'),
       sbFetch('employees?select=*'),
       sbFetch('wf_actions?select=*'),
       sbFetch('wf_action_options?select=*&order=sort_order'),
       sbFetch('pas_roles?select=*'),
       sbFetch('app_state?id=eq.1&select=*'),
-      sbFetch('removed_resources?select=*')
+      sbFetch('removed_resources?select=*'),
+      sbFetch('timesheet_activities?select=*')
     ]);
     if(!mlRows || mlRows.length===0) return null; // nothing seeded yet — show upload screen
+
+    // Reconstruct timesheetActivitiesByMonth from the raw table so "Top projects" works
+    // right after a normal page load, not just right after a fresh upload.
+    const timesheetActivitiesOut = {};
+    (actRows||[]).forEach(r=>{
+      if(!timesheetActivitiesOut[r.month]) timesheetActivitiesOut[r.month]=[];
+      timesheetActivitiesOut[r.month].push({
+        code:r.code, activityCode:r.activity_code||'', activityName:r.activity_name||'',
+        activityType:r.activity_type||'', billable:r.billable||'', utilized:r.utilized||'',
+        days:Number(r.number_of_days)||0, costCenter:r.cost_center||'', remarks:r.remarks||''
+      });
+    });
 
     const masterListOut = mlRows.map(r=>({
       code:r.code, name:r.name||'', oldId:r.old_id||'', practice:r.practice||'', shore:r.shore||'',
@@ -3174,6 +3189,7 @@ async function loadFromSupabase(){
       originalDataByMonth: appState.original_data_by_month || {},
       sharedFilter: appState.shared_filter || ['__all__'],
       finalizedMonths: appState.finalized_months || [],
+      timesheetActivities: timesheetActivitiesOut,
     };
   } catch(e){ console.warn('Supabase load failed:', e); }
   return null;
@@ -3259,6 +3275,7 @@ function loadState(){
 
     sharedFilter  = new Set((state.sharedFilter && state.sharedFilter.length) ? state.sharedFilter : ['__all__']);
     finalizedMonths = new Set(state.finalizedMonths || []);
+    timesheetActivitiesByMonth = state.timesheetActivities || {};
     billFilter    = new Set(['__all__']);
     practFilter   = new Set(['__all__']);
     compareFilter = new Set(['__all__']);
@@ -5636,6 +5653,31 @@ function renderExecSummary(){
   opening += allPracsAbove75 ? ', with all 5 practices clearing the 75% threshold that month.' : '.';
   document.getElementById('exec-opening-text').textContent = opening;
 
+// Per-month breakdown table shared by Q1/Q2/Q3 — Month, Headcount, Total Cost, Billable Cost, Billability %
+function execMonthTable(monthArr, monthStats, finalizedMonths){
+  const rows = monthArr.map(m=>{
+    const s = monthStats[m];
+    const isFinal = finalizedMonths.has(m);
+    return `<tr style="border-top:0.5px solid var(--border2)">
+      <td style="padding:5px 0;font-size:11px">${execMonthName(m)}${isFinal?'':' <span style="font-size:9px;color:#854f0b">·in progress</span>'}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:right">${s.hc}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:right">${execFmt(s.tc)}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:right">${execFmt(s.bc)}</td>
+      <td style="padding:5px 0 5px 8px;font-size:11px;text-align:right;font-weight:500">${execPct(s.bpct)}</td>
+    </tr>`;
+  }).join('');
+  return `<table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:6px">
+    <tr style="color:var(--text2);text-align:right">
+      <th style="text-align:left;padding-bottom:4px;font-weight:500">Month</th>
+      <th style="padding-bottom:4px;font-weight:500">Headcount</th>
+      <th style="padding-bottom:4px;font-weight:500">Total cost</th>
+      <th style="padding-bottom:4px;font-weight:500">Billable cost</th>
+      <th style="padding-bottom:4px;font-weight:500">Billability</th>
+    </tr>
+    ${rows}
+  </table>`;
+}
+
   // ── Q1 ──
   if(q1){
     const q1IsFinal = q1Months.every(m=>finalizedMonths.has(m));
@@ -5647,10 +5689,11 @@ function renderExecSummary(){
       execKpiCard('Avg billability',execPct(q1.bpct),null,null)+
       execKpiCard('Avg headcount',q1.avgHc,null,null)+
       execKpiCard('Total cost (SAR)',execFmt(q1.tc),null,null)+
-      execKpiCard('Billable cost (SAR)',execFmt(q1.bc),null,null);
+      execKpiCard('Billable cost (SAR)',execFmt(q1.bc),null,null)+
+      execKpiCard('Unabsorbed cost (SAR)',execFmt(q1.tc-q1.bc),null,null);
     document.getElementById('exec-q1-bars').innerHTML = q1Months.map(m=>
       execBar(execMonthName(m), monthStats[m].bpct*100, '#2a78d6', execPct(monthStats[m].bpct))
-    ).join('');
+    ).join('') + execMonthTable(q1Months, monthStats, finalizedMonths);
   }
 
   // ── Q2 ──
@@ -5668,11 +5711,12 @@ function renderExecSummary(){
       execKpiCard('Avg billability',execPct(q2.bpct), q1?`${Math.abs(q2VsQ1pts).toFixed(1)} pts vs Q1`:null, q1?q2.bpct>=q1.bpct:null)+
       execKpiCard('Avg headcount',q2.avgHc, q1?`${q2.avgHc-q1.avgHc>=0?'+':''}${q2.avgHc-q1.avgHc} vs Q1`:null, q1?q2.avgHc>=q1.avgHc:null)+
       execKpiCard('Total cost (SAR)',execFmt(q2.tc),null,null)+
-      execKpiCard('Billable cost (SAR)',execFmt(q2.bc), bcGrowth!=null?`${bcGrowth}% vs Q1`:null, bcGrowth!=null?bcGrowth>=0:null);
+      execKpiCard('Billable cost (SAR)',execFmt(q2.bc), bcGrowth!=null?`${bcGrowth}% vs Q1`:null, bcGrowth!=null?bcGrowth>=0:null)+
+      execKpiCard('Unabsorbed cost (SAR)',execFmt(q2.tc-q2.bc),null,null);
     document.getElementById('exec-q2-bars').innerHTML = q2Months.map(m=>{
       const isPeak = m===peakM;
       return execBar(isPeak?execMonthName(m)+' ★':execMonthName(m), monthStats[m].bpct*100, '#1baf7a', execPct(monthStats[m].bpct));
-    }).join('');
+    }).join('') + execMonthTable(q2Months, monthStats, finalizedMonths);
 
     // Practice breakdown for latest FINAL month (dup-aware)
     const lf = monthStats[latestFinal];
@@ -5701,7 +5745,7 @@ function renderExecSummary(){
       projMap[key].days += Number(a.days)||0;
       if(a.code) projMap[key].res.add(a.code);
     });
-    const projArr=Object.entries(projMap).map(([n,v])=>({n,days:v.days,res:v.res.size})).sort((a,b)=>b.days-a.days).slice(0,5);
+    const projArr=Object.entries(projMap).map(([n,v])=>({n,days:v.days,res:v.res.size})).sort((a,b)=>b.days-a.days).slice(0,8);
     document.getElementById('exec-projects').innerHTML = projArr.length ? projArr.map(({n,days,res})=>`
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
         <span style="font-size:11px;color:var(--text2);flex:1;line-height:1.3" title="${n}">${n}</span>
@@ -5753,26 +5797,27 @@ function renderExecSummary(){
   }
 
   // ── Q3 (in progress) ──
-  if(q3Months.length){
+  if(q3 && q3Months.length){
     const q3IsFinal = q3Months.every(m=>finalizedMonths.has(m));
     document.getElementById('exec-q3-label').innerHTML =
       `Q3 2026 · ${q3Months.map(execMonthName).join(', ')}`+
       (q3IsFinal ? '<span style="font-size:9px;padding:1px 5px;border-radius:99px;background:#eaf3de;color:#3b6d11;font-weight:500;margin-left:4px">Final</span>'
                  : '<span style="font-size:9px;padding:1px 5px;border-radius:99px;background:#faeeda;color:#854f0b;font-weight:500;margin-left:4px">In progress</span>');
     const q3Latest = q3Months[q3Months.length-1];
-    const q3s = monthStats[q3Latest];
-    const prevM = months[months.indexOf(q3Latest)-1];
+    const q3sLatest = monthStats[q3Latest];
+    const prevM = months[months.indexOf(q3Months[0])-1];
     const prevS = prevM ? monthStats[prevM] : null;
-    const bpctDelta = prevS ? (q3s.bpct-prevS.bpct)*100 : null;
+    const q3VsPrevPts = prevS ? (q3.bpct-prevS.bpct)*100 : null;
     document.getElementById('exec-q3-body').textContent =
-      `${execMonthName(q3Latest)} shows ${execPct(q3s.bpct)} billability across ${q3s.hc} resources`+
-      (bpctDelta!=null ? ` — a ${Math.abs(bpctDelta).toFixed(1)} pt ${bpctDelta>=0?'improvement':'drop'} vs the prior month` : '')+
-      `.`;
-    const benchDelta = prevS ? q3s.benched-prevS.benched : null;
+      `Q3 so far averages ${execPct(q3.bpct)} billability across ${q3Months.map(execMonthName).join(' and ')}`+
+      (q3VsPrevPts!=null ? ` — ${Math.abs(q3VsPrevPts).toFixed(1)} pts ${q3VsPrevPts>=0?'above':'below'} ${execMonthName(prevM)}` : '')+
+      `. ${q3Months.length>1?'These months are':'This month is'} still in progress — figures may change as timesheets are submitted.`;
     document.getElementById('exec-q3-kpis').innerHTML =
-      execKpiCard('Billability',execPct(q3s.bpct), bpctDelta!=null?`${Math.abs(bpctDelta).toFixed(1)} pts vs prior month`:null, bpctDelta!=null?bpctDelta>=0:null)+
-      execKpiCard('Headcount',q3s.hc, prevS?`${q3s.hc-prevS.hc>=0?'+':''}${q3s.hc-prevS.hc} vs prior month`:null, prevS?q3s.hc>=prevS.hc:null)+
-      execKpiCard('Benched',q3s.benched, benchDelta!=null?`${Math.abs(benchDelta)} vs prior month`:null, benchDelta!=null?benchDelta<=0:null);
+      execKpiCard('Avg billability',execPct(q3.bpct), q3VsPrevPts!=null?`${Math.abs(q3VsPrevPts).toFixed(1)} pts vs ${execMonthName(prevM)}`:null, q3VsPrevPts!=null?q3VsPrevPts>=0:null)+
+      execKpiCard('Avg headcount',q3.avgHc,null,null)+
+      execKpiCard('Total cost (SAR)',execFmt(q3.tc),null,null)+
+      execKpiCard('Unabsorbed cost (SAR)',execFmt(q3.tc-q3.bc),null,null);
+    document.getElementById('exec-q3-table').innerHTML = execMonthTable(q3Months, monthStats, finalizedMonths);
     document.getElementById('exec-q3-note').textContent = q3IsFinal
       ? 'Q3 month(s) marked as final.'
       : `${q3Months.map(execMonthName).join(', ')} not yet finalized — figures may change as timesheets are submitted.`;
