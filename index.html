@@ -1124,10 +1124,11 @@ function selectMonth(month){
   if(document.getElementById('tab-workforce').classList.contains('active')) renderWorkforce();
 }
 function switchTab(name){
-  const names=['bill','practice','missing','compare','workforce','wfcompare','costanalysis','teamoverview'];
+  const names=['bill','practice','missing','compare','workforce','wfcompare','costanalysis','teamoverview','execsummary'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
+  localStorage.setItem('timesheet_dashboard_last_tab', name);
   // Toggle KPI grids based on tab
   const kpiGrid = document.getElementById('mainKpiGrid');
   const wfKpiGrid = document.getElementById('wfKpiGrid');
@@ -3295,6 +3296,8 @@ function loadState(){
     initCompMonthDropdowns();
     initWfCompMonthDropdowns();
     updateKPIs(); renderBillTable(); renderPracticeTable(); renderBelowTable(); renderMissingTable();
+    const savedTab = localStorage.getItem('timesheet_dashboard_last_tab');
+    if(savedTab && document.getElementById('tab-'+savedTab)) switchTab(savedTab);
     setTimeout(()=>{
       drawPracticeCharts(); initResizer();
       // Restore column visibility
