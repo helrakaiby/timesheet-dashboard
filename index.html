@@ -5666,13 +5666,14 @@ function execMonthTable(monthArr, monthStats, finalizedMonths){
       <td style="padding:5px 0 5px 8px;font-size:11px;text-align:right;font-weight:500">${execPct(s.bpct)}</td>
     </tr>`;
   }).join('');
-  return `<table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:6px">
-    <tr style="color:var(--text2);text-align:right">
+  return `<table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:6px;table-layout:fixed">
+    <colgroup><col style="width:26%"><col style="width:18%"><col style="width:20%"><col style="width:20%"><col style="width:16%"></colgroup>
+    <tr style="color:var(--text2)">
       <th style="text-align:left;padding-bottom:4px;font-weight:500">Month</th>
-      <th style="padding-bottom:4px;font-weight:500">Headcount</th>
-      <th style="padding-bottom:4px;font-weight:500">Total cost</th>
-      <th style="padding-bottom:4px;font-weight:500">Billable cost</th>
-      <th style="padding-bottom:4px;font-weight:500">Billability</th>
+      <th style="text-align:right;padding-bottom:4px;font-weight:500">Headcount</th>
+      <th style="text-align:right;padding-bottom:4px;font-weight:500">Total cost</th>
+      <th style="text-align:right;padding-bottom:4px;font-weight:500">Billable cost</th>
+      <th style="text-align:right;padding-bottom:4px;font-weight:500">Billability</th>
     </tr>
     ${rows}
   </table>`;
