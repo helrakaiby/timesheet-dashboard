@@ -1439,6 +1439,16 @@ function updateTeamDataOnly(file){
     masterList=Object.values(mlMap);
   // If ml param was already an array of processed objects (from updateTeamDataOnly), use as-is
     rebuildMlMaps();
+    // Refresh practice on all stored monthly rows to match the updated Master List —
+    // except rows manually edited via the practice cell (those stay protected).
+    Object.keys(employeesByMonth||{}).forEach(m=>{
+      (employeesByMonth[m]||[]).forEach(e=>{
+        if(editedFieldsByMonth[m]?.[e.code]?.practice) return; // manual edit wins
+        const ml=findMlEntry(e.code, e.name);
+        if(ml && ml.practice) e.practice=normP(ml.practice);
+      });
+    });
+    rebuildPractices(); buildSharedDD();
     updateKPIs();renderBillTable();renderPracticeTable();renderBelowTable();renderMissingTable();
     if(document.getElementById('tab-workforce').classList.contains('active'))renderWorkforce();
     autoSave();
@@ -1448,11 +1458,14 @@ function updateTeamDataOnly(file){
 }
 
 function rebuildTimesheetOnly(raw){
-  // Snapshot the CURRENT practice for every known employee code, before we rebuild.
-  // This lets us preserve manually-set/corrected practices across a timesheet refresh.
-  const existingPracticeByCode = {};
-  Object.values(employeesByMonth||{}).forEach(emps=>{
-    (emps||[]).forEach(e=>{ if(e.code && e.practice) existingPracticeByCode[e.code]=e.practice; });
+  // Snapshot ONLY manually-edited practices (set via clicking the practice cell), so those
+  // survive a timesheet refresh. Everything else now re-derives from the Master List, so
+  // Team Data practice changes flow through instead of being stuck on old stored values.
+  const editedPracticeByCode = {};
+  Object.keys(employeesByMonth||{}).forEach(m=>{
+    (employeesByMonth[m]||[]).forEach(e=>{
+      if(editedFieldsByMonth[m]?.[e.code]?.practice && e.practice) editedPracticeByCode[e.code]=e.practice;
+    });
   });
 
   // Rebuild employeesByMonth from new timesheet data using existing mlMap
@@ -1474,10 +1487,11 @@ function rebuildTimesheetOnly(raw){
     // Use existing mlMap to get cost and practice
     const mlEntry=findMlEntry(code, findKey(r,'Employee Name'));
     const cost=mlEntry?getRowCost(code, mlEntry):0;
-    // If we already know this employee's practice (from a prior upload / manual edit), keep it as-is.
-    // Otherwise fall back to Master List, then to the Timesheet file's own Practice column.
-    const practice=existingPracticeByCode[code]
-      ||(mlEntry?normP(mlEntry.practice):normP(findKey(r,'Practice')));
+    // Practice priority: manual click-edit (protected) -> Master List (Team Data is the
+    // source of truth) -> the Timesheet file's own Practice column as last resort.
+    const practice=editedPracticeByCode[code]
+      ||(mlEntry?normP(mlEntry.practice):'')
+      ||normP(findKey(r,'Practice'));
     if(!byMonth[month][code]) byMonth[month][code]={
       code, month,
       name:findKey(r,'Employee Name'),
