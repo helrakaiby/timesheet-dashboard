@@ -382,7 +382,7 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
     <button class="tab" onclick="switchTab('wfcompare')" style="background:var(--green-bg);color:var(--green);font-weight:500">📊 Workforce Comparison</button>
     <button class="tab" onclick="switchTab('costanalysis')" style="background:#fff8e1;color:#f57c00;font-weight:500">💰 Cost Analysis</button>
     <button class="tab" onclick="switchTab('teamoverview')" style="background:#e8f5e9;color:#2e7d32;font-weight:500">👥 Team Overview</button>
-    <button class="tab" onclick="switchTab('execsummary')" style="background:#1a1a2e;color:#fff;font-weight:500">📋 Executive Summary</button>
+    <button class="tab" onclick="switchTab('execsummary')" style="background:#e6f1fb;color:#185FA5;font-weight:500">⭐ Executive Summary</button>
   </div>
 
   <!-- Billability Summary -->
@@ -757,9 +757,87 @@ th:hover .col-resizer::after,.col-resizer.dragging::after{opacity:1}
   </div>
 
   <!-- Executive Summary -->
-  <div class="tab-panel" id="tab-execsummary">
-    <div class="exec-lock-bar" id="execLockBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem;padding:10px 14px;background:var(--bg2);border-radius:8px;font-size:12px"></div>
-    <div id="execTimeline" style="max-width:820px;margin:0 auto"></div>
+  <div class="tab-panel" id="tab-execsummary" style="padding:1.25rem">
+
+    <div id="exec-finalized-bar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem;padding:.6rem 1rem;background:var(--bg2);border-radius:8px;border:0.5px solid var(--border)">
+      <span style="font-size:10px;color:var(--text2);margin-right:4px;white-space:nowrap">Mark months as final:</span>
+      <div id="exec-month-toggles" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+    </div>
+
+    <div id="exec-opening" style="border-left:3px solid #2a78d6;border-radius:0 10px 10px 0;padding:.85rem 1.1rem;background:var(--bg2);margin-bottom:1.5rem">
+      <div id="exec-opening-text" style="font-size:13px;color:var(--text);line-height:1.75;font-style:italic">—</div>
+    </div>
+
+    <div style="position:relative;padding-left:32px">
+      <div style="position:absolute;left:10px;top:4px;bottom:4px;width:2px;background:var(--border)"></div>
+
+      <!-- Q1 Chapter -->
+      <div class="exec-chapter" style="display:flex;gap:1rem;margin-bottom:1.75rem;position:relative">
+        <div style="position:absolute;left:-32px;top:2px;width:22px;height:22px;border-radius:50%;background:#e6f1fb;border:2px solid #2a78d6;color:#0c447c;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;z-index:1;flex-shrink:0">Q1</div>
+        <div style="background:var(--bg);border:0.5px solid var(--border);border-left:3px solid #2a78d6;border-radius:0 10px 10px 0;padding:1rem 1.1rem;flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem">Q1 2026 · Jan — Mar <span id="exec-q1-badge"></span></div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">The foundation</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-q1-body">—</div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q1-kpis"></div>
+          <div id="exec-q1-bars" style="margin-bottom:.25rem"></div>
+        </div>
+      </div>
+
+      <!-- Q2 Chapter -->
+      <div class="exec-chapter" style="display:flex;gap:1rem;margin-bottom:1.75rem;position:relative">
+        <div style="position:absolute;left:-32px;top:2px;width:22px;height:22px;border-radius:50%;background:#e1f5ee;border:2px solid #1baf7a;color:#085041;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;z-index:1;flex-shrink:0">Q2</div>
+        <div style="background:var(--bg);border:0.5px solid var(--border);border-left:3px solid #1baf7a;border-radius:0 10px 10px 0;padding:1rem 1.1rem;flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem">Q2 2026 · Apr — Jun <span id="exec-q2-badge"></span></div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">The turning point</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-q2-body">—</div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q2-kpis"></div>
+          <div id="exec-q2-bars" style="margin-bottom:.5rem"></div>
+          <div style="border-top:0.5px solid var(--border);padding-top:.6rem;margin-top:.5rem">
+            <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:.4rem">Practice breakdown — latest final month</div>
+            <div id="exec-practice-bars"></div>
+          </div>
+          <div style="border-top:0.5px solid var(--border);padding-top:.6rem;margin-top:.5rem">
+            <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:.4rem">Top projects by days consumed</div>
+            <div id="exec-projects"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills Chapter -->
+      <div class="exec-chapter" style="display:flex;gap:1rem;margin-bottom:1.75rem;position:relative">
+        <div style="position:absolute;left:-32px;top:2px;width:22px;height:22px;border-radius:50%;background:#eeedfe;border:2px solid #534ab7;color:#3c3489;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;flex-shrink:0">◈</div>
+        <div style="background:var(--bg);border:0.5px solid var(--border);border-left:3px solid #534ab7;border-radius:0 10px 10px 0;padding:1rem 1.1rem;flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem">Skills and capability — latest final month</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">Where the expertise sits</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-skills-body">—</div>
+          <div id="exec-skills-bars"></div>
+          <div style="font-size:10px;color:var(--text2);margin-top:6px">✕ = benched resources within that offering · bars = share of largest offering</div>
+        </div>
+      </div>
+
+      <!-- Q3 Chapter -->
+      <div class="exec-chapter" style="display:flex;gap:1rem;margin-bottom:1.75rem;position:relative">
+        <div style="position:absolute;left:-32px;top:2px;width:22px;height:22px;border-radius:50%;background:#faeeda;border:2px solid #ba7517;color:#633806;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;z-index:1;flex-shrink:0">Q3</div>
+        <div style="background:var(--bg);border:0.5px solid var(--border);border-left:3px solid #ba7517;border-radius:0 10px 10px 0;padding:1rem 1.1rem;flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-bottom:.25rem" id="exec-q3-label">Q3 2026 · in progress</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.4rem">The current picture</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:.75rem" id="exec-q3-body">—</div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:.75rem" id="exec-q3-kpis"></div>
+          <div style="font-size:10px;color:#854f0b;background:#faeeda;padding:6px 10px;border-radius:6px" id="exec-q3-note"></div>
+        </div>
+      </div>
+
+      <!-- Watch List -->
+      <div class="exec-chapter" style="display:flex;gap:1rem;margin-bottom:0;position:relative">
+        <div style="position:absolute;left:-32px;top:2px;width:22px;height:22px;border-radius:50%;background:#fcebeb;border:2px solid #e24b4a;color:#791f1f;display:flex;align-items:center;justify-content:center;font-size:13px;z-index:1;flex-shrink:0">⚑</div>
+        <div style="background:var(--bg);border:0.5px solid var(--border);border-left:3px solid #e24b4a;border-radius:0 10px 10px 0;padding:1rem 1.1rem;flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:#a32d2d;margin-bottom:.25rem">Watch list</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:.6rem">What needs attention</div>
+          <div id="exec-watchlist"></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- Missing Resources -->
@@ -968,7 +1046,7 @@ const ADD_CUSTOM_VALUE = '__add_custom__';
 
 // ── State ──────────────────────────────────────────────────────────────────
 let employeesByMonth={}, masterList=[], allPractices=[], allMonths=[];
-let finalizedMonths=[]; // months marked final via the Executive Summary lock toggle
+let finalizedMonths=new Set(); // months marked final via the Executive Summary lock toggle
 let timesheetActivitiesByMonth={}; // raw per-row activity detail, only populated fresh on upload, synced separately
 let billSort={col:-1,asc:true}, practSort={col:-1,asc:true}, belowSort={col:8,asc:true};
 let billFilter=new Set(['__all__']), practFilter=new Set(['__all__']), compareFilter=new Set(['__all__']);
@@ -3180,7 +3258,7 @@ function loadState(){
     });
 
     sharedFilter  = new Set((state.sharedFilter && state.sharedFilter.length) ? state.sharedFilter : ['__all__']);
-    finalizedMonths = state.finalizedMonths || [];
+    finalizedMonths = new Set(state.finalizedMonths || []);
     billFilter    = new Set(['__all__']);
     practFilter   = new Set(['__all__']);
     compareFilter = new Set(['__all__']);
@@ -5411,257 +5489,317 @@ function initCostResizers(){
 // ── Team Overview ──────────────────────────────────────────────────────────
 
 // ── Executive Summary ───────────────────────────────────────────────────────
-// Every number below is computed via the SAME functions the rest of the dashboard uses
-// (filtEmps, calcWithCost, findMasterListDuplicatePairs, getSkills, isMlResigned, getAction) —
-// never a separate calculation — so this tab always matches Billability Summary exactly.
+// Every number below reuses the dashboard's own existing functions (filtEmps,
+// calcWithCost, findMasterListDuplicatePairs, getDuplicateOverrideCost, cleanSkillText) —
+// never a separate calculation — and correctly merges duplicate-pair transitions (e.g.
+// Q2052 -> E3682) so nobody is double-counted mid-transition, matching Billability Summary
+// exactly. Every sentence below is genuinely computed from real conditions, not a fixed
+// template — if the underlying condition isn't true, that sentence/clause is omitted.
+const EX_PRACTICES = new Set([
+  'Automation and Platform Services','Cloud Engineering and Observability Delivery',
+  'Hybrid Cloud DMs','Infrastructure Hybrid and Datacenter','Public Cloud and Modernization'
+]);
+const EX_MONTH_NAME = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function execMonthName(m){ return EX_MONTH_NAME[parseInt(m.split('-')[1])]; }
 
+function execFmt(n){ return Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function execPct(n){ return (n*100).toFixed(1)+'%'; }
+
+function execKpiCard(label,val,delta,deltaUp){
+  const dColor = deltaUp==null ? 'var(--text2)' : deltaUp ? 'var(--green)' : 'var(--red)';
+  const dArrow = deltaUp==null ? '' : deltaUp ? '▲' : '▼';
+  return `<div style="background:var(--bg2);border-radius:8px;padding:.55rem .7rem">
+    <div style="font-size:10px;color:var(--text2);margin-bottom:2px">${label}</div>
+    <div style="font-size:16px;font-weight:500;color:var(--text);line-height:1">${val}</div>
+    ${delta ? `<div style="font-size:10px;margin-top:3px;color:${dColor}">${dArrow} ${delta}</div>` : ''}
+  </div>`;
+}
+
+// Full label, no truncation — wraps onto a second line if needed instead of cutting off.
+function execBar(label,pct,color,suffix){
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+    <span style="font-size:11px;color:var(--text2);width:210px;flex-shrink:0;line-height:1.3" title="${label}">${label}</span>
+    <div style="flex:1;background:var(--border);border-radius:99px;height:5px;min-width:40px">
+      <div style="width:${Math.min(pct,100)}%;height:5px;border-radius:99px;background:${color}"></div>
+    </div>
+    <span style="font-size:10px;color:var(--text2);width:50px;text-align:right;flex-shrink:0">${suffix}</span>
+  </div>`;
+}
+
+function execFlag(color,text){
+  return `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+    <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;margin-top:4px"></div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.5">${text}</div>
+  </div>`;
+}
+
+// Computes one month's aggregate stats the SAME way Billability Summary does:
+// dedupes duplicate-pair transitions and applies the E/Q PAS-rate override to their cost.
 function execMonthStats(month){
-  const emps = filtEmps(employeesByMonth[month]||[], sharedFilter);
+  const emps = filtEmps(employeesByMonth[month]||[], sharedFilter).filter(e=>EX_PRACTICES.has(e.practice));
   const dupPairs = findMasterListDuplicatePairs(emps);
   const dupPartner = {};
   dupPairs.forEach(p=>{ dupPartner[p.emp1.code]=p.emp2.code; dupPartner[p.emp2.code]=p.emp1.code; });
-  let bMD=0,nbMD=0,ipMD=0,bc=0,tc=0,tMD=0;
+  let bc=0,tc=0,bMD=0,nbMD=0,ipMD=0,tMD=0,benched=0;
   emps.forEach(e=>{
     const overrideCost = dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
     const r = calcWithCost(e, overrideCost);
-    bMD+=e.billableMD; nbMD+=e.nonBillableMD; ipMD+=e.intProjMD; bc+=r.bc; tc+=r.tc; tMD+=r.tot;
+    bc+=r.bc; tc+=r.tc; bMD+=e.billableMD; nbMD+=e.nonBillableMD; ipMD+=e.intProjMD; tMD+=r.tot;
+    if(e.billableMD===0) benched++;
   });
-  return {
-    resources: emps.length - dupPairs.length,
-    bpct: tc>0?bc/tc:0, upct: tMD>0?(bMD+ipMD)/tMD:0,
-    bc, tc, bMD, nbMD, ipMD, tMD, emps
-  };
+  return { hc: emps.length-dupPairs.length, bc, tc, bMD, nbMD, ipMD, tMD,
+    bpct: tMD>0?bMD/tMD:0, benched, emps, dupPartner };
 }
 
-function execQuarterStats(months){
-  const per = months.filter(m=>employeesByMonth[m]).map(m=>execMonthStats(m));
-  if(!per.length) return null;
-  const sum=(k)=>per.reduce((s,p)=>s+p[k],0);
-  const bc=sum('bc'), tc=sum('tc'), bMD=sum('bMD'), nbMD=sum('nbMD'), ipMD=sum('ipMD'), tMD=sum('tMD');
-  return {
-    months, per,
-    avgResources: Math.round(per.reduce((s,p)=>s+p.resources,0)/per.length),
-    bpct: tc>0?bc/tc:0, upct: tMD>0?(bMD+ipMD)/tMD:0,
-    bc, tc
-  };
-}
-
-function execTrendArrow(cur, prev){
-  if(prev==null || prev===0) return '';
-  const diff = (cur-prev)*100;
-  if(Math.abs(diff)<0.5) return '<span style="color:var(--text3)">→ flat</span>';
-  return diff>0
-    ? `<span style="color:var(--green)">↑ +${diff.toFixed(1)}pt</span>`
-    : `<span style="color:var(--red)">↓ ${diff.toFixed(1)}pt</span>`;
-}
-
-function execChapter(color, title, subtitle, bodyHtml){
-  return `<div style="display:flex;gap:16px;position:relative;padding-bottom:2.5rem">
-    <div style="flex:0 0 14px;position:relative">
-      <div style="width:14px;height:14px;border-radius:50%;background:${color};margin-top:4px;position:relative;z-index:1"></div>
-      <div style="position:absolute;top:14px;bottom:-40px;left:6px;width:2px;background:var(--border2)"></div>
-    </div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:11px;font-weight:600;color:${color};text-transform:uppercase;letter-spacing:0.5px">${title}</div>
-      ${subtitle?`<div style="font-size:13px;color:var(--text2);margin:2px 0 12px">${subtitle}</div>`:''}
-      ${bodyHtml}
-    </div>
-  </div>`;
-}
-
-function execBar(label, pct, color){
-  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-    <div style="width:60px;font-size:11px;color:var(--text2);flex-shrink:0">${label}</div>
-    <div style="flex:1;background:var(--bg2);border-radius:4px;height:16px;position:relative;overflow:hidden">
-      <div style="width:${Math.min(100,pct*100)}%;background:${color};height:100%;border-radius:4px"></div>
-    </div>
-    <div style="width:44px;font-size:11px;font-weight:600;text-align:right">${(pct*100).toFixed(1)}%</div>
-  </div>`;
+function execQStats(monthArr, monthStats){
+  const valid = monthArr.filter(m=>monthStats[m]);
+  if(!valid.length) return null;
+  const t = valid.reduce((a,m)=>{
+    const s=monthStats[m];
+    return {bc:a.bc+s.bc, tc:a.tc+s.tc, bMD:a.bMD+s.bMD, tMD:a.tMD+s.tMD, hc:a.hc+s.hc, n:a.n+1};
+  },{bc:0,tc:0,bMD:0,tMD:0,hc:0,n:0});
+  return { bc:t.bc, tc:t.tc, bpct:t.tMD>0?t.bMD/t.tMD:0, avgHc:Math.round(t.hc/t.n) };
 }
 
 function renderExecSummary(){
-  const q1Months=['2026-01','2026-02','2026-03'].filter(m=>employeesByMonth[m]);
-  const q2Months=['2026-04','2026-05','2026-06'].filter(m=>employeesByMonth[m]);
-  const q3Months=allMonths.filter(m=>m>='2026-07');
-
-  // Lock bar — one toggle per month that has data
-  const lockBar = document.getElementById('execLockBar');
-  lockBar.innerHTML = `<span style="font-weight:600;color:var(--text2)">Mark month as final:</span>` +
-    allMonths.map(m=>{
-      const isFinal = finalizedMonths.includes(m);
-      return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px;border-radius:5px;background:${isFinal?'var(--green-bg)':'var(--bg)'};border:0.5px solid var(--border2)">
-        <input type="checkbox" ${isFinal?'checked':''} onchange="toggleFinalizedMonth('${m}')" style="margin:0">
-        <span style="color:${isFinal?'var(--green)':'var(--text2)'}">${m}</span>
-      </label>`;
-    }).join('');
-
-  if(q1Months.length===0 && q2Months.length===0 && q3Months.length===0){
-    document.getElementById('execTimeline').innerHTML = `<div class="empty" style="padding:3rem 0">No data available yet.</div>`;
+  const togglesEl = document.getElementById('exec-month-toggles');
+  if(!togglesEl) return;
+  const months = allMonths.filter(m=>employeesByMonth[m]).sort();
+  if(!months.length){
+    document.getElementById('exec-opening-text').textContent = 'No data available yet.';
     return;
   }
 
-  const q1 = q1Months.length ? execQuarterStats(q1Months) : null;
-  const q2 = q2Months.length ? execQuarterStats(q2Months) : null;
-  // Q3 = whichever Jul+ months are NOT marked final are shown as "in progress";
-  // if none of them are marked final at all, treat the whole chapter as in-progress (default).
-  const q3FinalMonths = q3Months.filter(m=>finalizedMonths.includes(m));
-  const q3OpenMonths = q3Months.filter(m=>!finalizedMonths.includes(m));
-  const q3 = q3Months.length ? execQuarterStats(q3Months) : null;
+  // ── Month lock toggles ──
+  togglesEl.innerHTML = months.map(m=>{
+    const isFinal = finalizedMonths.has(m);
+    const isQ3 = m>='2026-07';
+    const bg = isFinal ? '#eaf3de' : isQ3 ? '#faeeda' : 'var(--bg2)';
+    const col = isFinal ? '#3b6d11' : isQ3 ? '#854f0b' : 'var(--text2)';
+    const border = isFinal ? '#c0dd97' : isQ3 ? '#fac775' : 'var(--border)';
+    const icon = isFinal ? '🔒' : '🔓';
+    return `<span onclick="toggleFinalizedMonth('${m}')" title="Click to mark/unmark as final"
+      style="cursor:pointer;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:500;
+      background:${bg};color:${col};border:0.5px solid ${border};display:inline-flex;align-items:center;gap:3px;user-select:none">
+      ${icon} ${m}
+    </span>`;
+  }).join('');
 
-  let html = '';
+  // ── Per-month stats (dup-aware, dashboard-matching) ──
+  const monthStats = {};
+  months.forEach(m=>{ monthStats[m] = execMonthStats(m); });
 
-  // ── Chapter 1: Opening statement ──
-  const latest = q2 || q1;
-  const latestMonth = (q2Months[q2Months.length-1])||(q1Months[q1Months.length-1]);
-  const openingParts = [];
-  if(latest){
-    openingParts.push(`Across the year so far, overall billability has averaged <b>${(latest.bpct*100).toFixed(1)}%</b> with utilization at <b>${(latest.upct*100).toFixed(1)}%</b>, covering an average of <b>${latest.avgResources}</b> resources per month.`);
-  }
-  if(q1 && q2){
-    const arrow = (q2.bpct-q1.bpct)*100;
-    openingParts.push(arrow>=0.5
-      ? `Billability improved by <b>${arrow.toFixed(1)} points</b> from Q1 to Q2.`
-      : arrow<=-0.5 ? `Billability declined by <b>${Math.abs(arrow).toFixed(1)} points</b> from Q1 to Q2 — worth a closer look.`
-      : `Billability held broadly steady between Q1 and Q2.`);
-  }
-  if(q3Months.length){
-    openingParts.push(`${q3Months.length>1?`${q3Months[0]} to ${q3Months[q3Months.length-1]}`:q3Months[0]} ${q3Months.length>1?'are':'is'} still in progress and not yet finalized.`);
-  }
-  html += `<div style="font-family:Georgia,serif;font-size:17px;line-height:1.7;color:var(--text);margin-bottom:2.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border2)">${openingParts.join(' ')}</div>`;
+  const finalMonthsSorted = months.filter(m=>finalizedMonths.has(m)).sort();
+  const latestFinal = finalMonthsSorted.length ? finalMonthsSorted[finalMonthsSorted.length-1] : months[months.length-1];
 
-  // ── Chapter 2: Q1 ──
+  const q1Months=['2026-01','2026-02','2026-03'].filter(m=>months.includes(m));
+  const q2Months=['2026-04','2026-05','2026-06'].filter(m=>months.includes(m));
+  const q3Months=months.filter(m=>m>='2026-07');
+  const q1=execQStats(q1Months, monthStats), q2=execQStats(q2Months, monthStats), q3=execQStats(q3Months, monthStats);
+
+  // Real peak month (genuinely computed, not assumed)
+  const peakM = months.reduce((a,m)=>(monthStats[m].bpct)>(monthStats[a].bpct)?m:a, months[0]);
+  const peakPct = execPct(monthStats[peakM].bpct);
+
+  // ── Opening statement — every clause conditional on real data ──
+  const firstM=months[0], lastM=months[months.length-1];
+  const firstHc=monthStats[firstM].hc, lastHc=monthStats[lastM].hc;
+  const hcGrowth = firstHc>0 ? Math.round((lastHc-firstHc)/firstHc*100) : 0;
+  let opening = `From ${execMonthName(firstM)} to ${execMonthName(lastM)} 2026, headcount across the 5 tracked practices `+
+    (hcGrowth>0?`grew from ${firstHc} to ${lastHc} resources (${hcGrowth}% growth)`:
+     hcGrowth<0?`shrank from ${firstHc} to ${lastHc} resources (${Math.abs(hcGrowth)}% decline)`:
+     `held steady at ${lastHc} resources`)+
+    `. Billability peaked at ${peakPct} in ${execMonthName(peakM)} 2026`;
+  // Only claim "all 5 practices cleared 75%" if it's actually, verifiably true that month
+  const peakEmps = monthStats[peakM].emps;
+  const peakPracs = {};
+  peakEmps.forEach(e=>{ if(!peakPracs[e.practice]) peakPracs[e.practice]={b:0,t:0}; peakPracs[e.practice].b+=e.billableMD; peakPracs[e.practice].t+=e.billableMD+e.nonBillableMD+e.intProjMD; });
+  const allPracsAbove75 = [...EX_PRACTICES].every(p=>peakPracs[p] && peakPracs[p].t>0 && (peakPracs[p].b/peakPracs[p].t)>=0.75);
+  opening += allPracsAbove75 ? ', with all 5 practices clearing the 75% threshold that month.' : '.';
+  document.getElementById('exec-opening-text').textContent = opening;
+
+  // ── Q1 ──
   if(q1){
-    let body = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
-      ${[['Avg Billability',(q1.bpct*100).toFixed(1)+'%'],['Avg Utilization',(q1.upct*100).toFixed(1)+'%'],
-         ['Total Cost',fmt(q1.tc)],['Billable Cost',fmt(q1.bc)]].map(([l,v])=>
-        `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px"><div style="font-size:10px;color:var(--text2)">${l}</div><div style="font-size:17px;font-weight:600">${v}</div></div>`
-      ).join('')}
-    </div>`;
-    body += q1.per.map((p,i)=>execBar(q1Months[i], p.bpct, 'var(--blue)')).join('');
-    html += execChapter('#3b82f6','Q1 · Jan–Mar','The foundation',body);
+    const q1IsFinal = q1Months.every(m=>finalizedMonths.has(m));
+    document.getElementById('exec-q1-badge').innerHTML = q1IsFinal
+      ? '<span style="font-size:9px;padding:1px 5px;border-radius:99px;background:#eaf3de;color:#3b6d11;font-weight:500">Final</span>' : '';
+    document.getElementById('exec-q1-body').textContent =
+      `Q1 opened with ${monthStats[q1Months[0]].hc} resources and closed with ${monthStats[q1Months[q1Months.length-1]].hc}, averaging ${execPct(q1.bpct)} billability across the quarter.`;
+    document.getElementById('exec-q1-kpis').innerHTML =
+      execKpiCard('Avg billability',execPct(q1.bpct),null,null)+
+      execKpiCard('Avg headcount',q1.avgHc,null,null)+
+      execKpiCard('Total cost (SAR)',execFmt(q1.tc),null,null)+
+      execKpiCard('Billable cost (SAR)',execFmt(q1.bc),null,null);
+    document.getElementById('exec-q1-bars').innerHTML = q1Months.map(m=>
+      execBar(execMonthName(m), monthStats[m].bpct*100, '#2a78d6', execPct(monthStats[m].bpct))
+    ).join('');
   }
 
-  // ── Chapter 3: Q2 ──
+  // ── Q2 ──
   if(q2){
-    let body = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
-      ${[['Avg Billability',(q2.bpct*100).toFixed(1)+'%',q1?execTrendArrow(q2.bpct,q1.bpct):''],
-         ['Avg Utilization',(q2.upct*100).toFixed(1)+'%',q1?execTrendArrow(q2.upct,q1.upct):''],
-         ['Total Cost',fmt(q2.tc),''],['Billable Cost',fmt(q2.bc),'']].map(([l,v,t])=>
-        `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px"><div style="font-size:10px;color:var(--text2)">${l}</div><div style="font-size:17px;font-weight:600">${v}</div><div style="font-size:10px">${t}</div></div>`
-      ).join('')}
-    </div>`;
-    body += q2.per.map((p,i)=>execBar(q2Months[i], p.bpct, 'var(--green)')).join('');
-    // Practice breakdown for the latest Q2 month
-    const lastQ2Month = q2Months[q2Months.length-1];
-    const lastQ2Emps = filtEmps(employeesByMonth[lastQ2Month]||[], sharedFilter);
-    const byPrac = {};
-    lastQ2Emps.forEach(e=>{
-      const p = e.practice||'Unknown';
-      if(!byPrac[p]) byPrac[p]={bMD:0,tMD:0};
-      byPrac[p].bMD += e.billableMD; byPrac[p].tMD += e.billableMD+e.nonBillableMD+e.intProjMD;
+    const q2IsFinal = q2Months.every(m=>finalizedMonths.has(m));
+    document.getElementById('exec-q2-badge').innerHTML = q2IsFinal
+      ? '<span style="font-size:9px;padding:1px 5px;border-radius:99px;background:#eaf3de;color:#3b6d11;font-weight:500">Final</span>' : '';
+    const q2VsQ1pts = q1 ? (q2.bpct-q1.bpct)*100 : null;
+    const bcGrowth = q1 && q1.bc>0 ? Math.round((q2.bc-q1.bc)/q1.bc*100) : null;
+    document.getElementById('exec-q2-body').textContent =
+      `Q2 averaged ${execPct(q2.bpct)} billability`+
+      (q2VsQ1pts!=null ? ` — ${q2VsQ1pts>=0?'up':'down'} ${Math.abs(q2VsQ1pts).toFixed(1)} points vs Q1` : '')+
+      (bcGrowth!=null ? `, with billable cost ${bcGrowth>=0?'growing':'declining'} ${Math.abs(bcGrowth)}% vs Q1.` : '.');
+    document.getElementById('exec-q2-kpis').innerHTML =
+      execKpiCard('Avg billability',execPct(q2.bpct), q1?`${Math.abs(q2VsQ1pts).toFixed(1)} pts vs Q1`:null, q1?q2.bpct>=q1.bpct:null)+
+      execKpiCard('Avg headcount',q2.avgHc, q1?`${q2.avgHc-q1.avgHc>=0?'+':''}${q2.avgHc-q1.avgHc} vs Q1`:null, q1?q2.avgHc>=q1.avgHc:null)+
+      execKpiCard('Total cost (SAR)',execFmt(q2.tc),null,null)+
+      execKpiCard('Billable cost (SAR)',execFmt(q2.bc), bcGrowth!=null?`${bcGrowth}% vs Q1`:null, bcGrowth!=null?bcGrowth>=0:null);
+    document.getElementById('exec-q2-bars').innerHTML = q2Months.map(m=>{
+      const isPeak = m===peakM;
+      return execBar(isPeak?execMonthName(m)+' ★':execMonthName(m), monthStats[m].bpct*100, '#1baf7a', execPct(monthStats[m].bpct));
+    }).join('');
+
+    // Practice breakdown for latest FINAL month (dup-aware)
+    const lf = monthStats[latestFinal];
+    const practMap={};
+    lf.emps.forEach(e=>{
+      if(!practMap[e.practice]) practMap[e.practice]={b:0,t:0};
+      const overrideCost = lf.dupPartner[e.code] ? getDuplicateOverrideCost(e) : null;
+      const r = calcWithCost(e, overrideCost);
+      practMap[e.practice].b+=e.billableMD; practMap[e.practice].t+=r.tot;
     });
-    body += `<div style="margin-top:14px;font-size:11px;color:var(--text2);font-weight:600">Practice breakdown — ${lastQ2Month}</div><div style="margin-top:6px">`;
-    body += Object.keys(byPrac).sort().map(p=>execBar(p.length>18?p.slice(0,17)+'…':p, byPrac[p].tMD>0?byPrac[p].bMD/byPrac[p].tMD:0, 'var(--green)')).join('');
-    body += `</div>`;
-    html += execChapter('#22c55e','Q2 · Apr–Jun','The turning point',body);
+    const practArr=Object.entries(practMap).map(([p,v])=>({p,bpct:v.t>0?v.b/v.t:0})).sort((a,b)=>b.bpct-a.bpct);
+    document.getElementById('exec-practice-bars').innerHTML = practArr.map(({p,bpct})=>
+      execBar(p, bpct*100, '#1baf7a', execPct(bpct))
+    ).join('');
+
+    // Top projects by days consumed — from the raw activity detail already loaded in
+    // memory from the last Timesheet upload (timesheetActivitiesByMonth), NOT a separate query.
+    const lfActs = (timesheetActivitiesByMonth[latestFinal]||[]).filter(a=>{
+      const b=(a.billable||'').toLowerCase();
+      return b==='y'||b==='yes'||b==='true';
+    });
+    const projMap={};
+    lfActs.forEach(a=>{
+      const key = a.activityName || 'Unknown';
+      if(!projMap[key]) projMap[key]={days:0,res:new Set()};
+      projMap[key].days += Number(a.days)||0;
+      if(a.code) projMap[key].res.add(a.code);
+    });
+    const projArr=Object.entries(projMap).map(([n,v])=>({n,days:v.days,res:v.res.size})).sort((a,b)=>b.days-a.days).slice(0,5);
+    document.getElementById('exec-projects').innerHTML = projArr.length ? projArr.map(({n,days,res})=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="font-size:11px;color:var(--text2);flex:1;line-height:1.3" title="${n}">${n}</span>
+        <span style="font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;flex-shrink:0">${days.toFixed(1)} d</span>
+        <span style="font-size:10px;color:var(--text2);white-space:nowrap;width:44px;text-align:right;flex-shrink:0">${res} res</span>
+      </div>`).join('') : '<div style="font-size:11px;color:var(--text2)">No activity data available for this month — only populated right after a Timesheet upload.</div>';
   }
 
-  // ── Chapter 4: Skills and capability ──
+  // ── Skills chapter (dup-aware) ──
   {
-    const allEmpsForSkills = filtEmps(employeesByMonth[latestMonth]||[], sharedFilter);
-    const skillOnMap={}, skillOffMap={};
-    allEmpsForSkills.forEach(e=>{
-      const ml=findMlEntry(e.code, e.name);
-      const shore=(ml?.shore||'').toLowerCase();
-      const sk=getSkills(e)||'Unknown';
-      if(shore==='offshore') skillOffMap[sk]=(skillOffMap[sk]||0)+1;
-      else skillOnMap[sk]=(skillOnMap[sk]||0)+1;
+    const lf = monthStats[latestFinal];
+    const skillOnMap={}, skillOffMap={}, benchOnMap={}, benchOffMap={};
+    lf.emps.forEach(e=>{
+      const ml = findMlEntry(e.code, e.name);
+      const shore = (ml?.shore||'').toLowerCase();
+      const sk = getSkills(e) || 'Unknown';
+      const isBenched = e.billableMD===0;
+      if(shore==='offshore'){
+        skillOffMap[sk]=(skillOffMap[sk]||0)+1;
+        if(isBenched) benchOffMap[sk]=(benchOffMap[sk]||0)+1;
+      } else {
+        skillOnMap[sk]=(skillOnMap[sk]||0)+1;
+        if(isBenched) benchOnMap[sk]=(benchOnMap[sk]||0)+1;
+      }
     });
     const allSkills=[...new Set([...Object.keys(skillOffMap),...Object.keys(skillOnMap)])]
+      .filter(s=>s!=='Unknown')
       .sort((a,b)=>((skillOffMap[b]||0)+(skillOnMap[b]||0))-((skillOffMap[a]||0)+(skillOnMap[a]||0)))
       .slice(0,12);
     const maxSk = allSkills.reduce((m,s)=>Math.max(m,(skillOffMap[s]||0)+(skillOnMap[s]||0)),1);
-    let body = allSkills.map(sk=>{
-      const off=skillOffMap[sk]||0, on=skillOnMap[sk]||0;
+    const totalBenched = lf.benched;
+    const topSkill = allSkills[0];
+    document.getElementById('exec-skills-body').textContent =
+      `Across ${lf.hc} resources in ${execMonthName(latestFinal)} ${latestFinal.split('-')[0]}`+
+      (topSkill ? `, ${topSkill} leads by headcount` : '')+
+      `. ${totalBenched} resource${totalBenched!==1?'s':''} across all offerings generated zero billability this month.`;
+    document.getElementById('exec-skills-bars').innerHTML = allSkills.map(sk=>{
+      const off=skillOffMap[sk]||0, on=skillOnMap[sk]||0, total=off+on;
+      const benched=(benchOffMap[sk]||0)+(benchOnMap[sk]||0);
+      const benchSuffix = benched>0 ? ` <span style="color:var(--red)">${benched}✕</span>` : '';
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <div style="width:180px;font-size:11px;color:var(--text2);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${sk}">${sk}</div>
-        <div style="flex:1;background:var(--bg2);border-radius:4px;height:14px;display:flex;overflow:hidden">
-          ${off>0?`<div style="width:${off/maxSk*100}%;background:#185FA5"></div>`:''}
-          ${on>0?`<div style="width:${on/maxSk*100}%;background:#639922"></div>`:''}
+        <span style="font-size:11px;color:var(--text2);width:210px;flex-shrink:0;line-height:1.3" title="${sk}">${sk}</span>
+        <div style="flex:1;background:var(--border);border-radius:99px;height:5px;min-width:40px">
+          <div style="width:${Math.round(total/maxSk*100)}%;height:5px;border-radius:99px;background:#534ab7"></div>
         </div>
-        <div style="width:36px;font-size:11px;text-align:right">${off+on}</div>
+        <span style="font-size:10px;color:var(--text2);width:70px;text-align:right;flex-shrink:0">${total} res${benchSuffix}</span>
       </div>`;
     }).join('');
-    body += `<div style="font-size:10px;color:var(--text2);margin-top:6px">🔵 Offshore &nbsp; 🟢 Onshore — as of ${latestMonth}</div>`;
-    html += execChapter('#a855f7','Skills and Capability',`Top offerings by resource count`,body);
   }
 
-  // ── Chapter 5: Q3 (in progress) ──
-  if(q3){
-    const badge = `<span style="background:var(--amber-bg);color:var(--amber);padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;margin-left:6px">IN PROGRESS${q3OpenMonths.length?' · '+q3OpenMonths.join(', '):''}</span>`;
-    let body = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
-      ${[['Avg Billability',(q3.bpct*100).toFixed(1)+'%'],['Avg Utilization',(q3.upct*100).toFixed(1)+'%'],
-         ['Total Cost',fmt(q3.tc)],['Resources',q3.avgResources]].map(([l,v])=>
-        `<div style="background:var(--bg2);border-radius:8px;padding:10px 12px"><div style="font-size:10px;color:var(--text2)">${l}</div><div style="font-size:17px;font-weight:600">${v}</div></div>`
-      ).join('')}
-    </div>`;
-    body += q3.per.map((p,i)=>execBar(q3Months[i], p.bpct, 'var(--amber)')).join('');
-    if(q3OpenMonths.length){
-      body += `<div style="margin-top:10px;font-size:11px;color:var(--amber);background:var(--amber-bg);padding:8px 10px;border-radius:6px">⚠️ ${q3OpenMonths.join(', ')} ${q3OpenMonths.length>1?'are':'is'} not finalized — figures may still change as timesheets are submitted.</div>`;
+  // ── Q3 (in progress) ──
+  if(q3Months.length){
+    const q3IsFinal = q3Months.every(m=>finalizedMonths.has(m));
+    document.getElementById('exec-q3-label').innerHTML =
+      `Q3 2026 · ${q3Months.map(execMonthName).join(', ')}`+
+      (q3IsFinal ? '<span style="font-size:9px;padding:1px 5px;border-radius:99px;background:#eaf3de;color:#3b6d11;font-weight:500;margin-left:4px">Final</span>'
+                 : '<span style="font-size:9px;padding:1px 5px;border-radius:99px;background:#faeeda;color:#854f0b;font-weight:500;margin-left:4px">In progress</span>');
+    const q3Latest = q3Months[q3Months.length-1];
+    const q3s = monthStats[q3Latest];
+    const prevM = months[months.indexOf(q3Latest)-1];
+    const prevS = prevM ? monthStats[prevM] : null;
+    const bpctDelta = prevS ? (q3s.bpct-prevS.bpct)*100 : null;
+    document.getElementById('exec-q3-body').textContent =
+      `${execMonthName(q3Latest)} shows ${execPct(q3s.bpct)} billability across ${q3s.hc} resources`+
+      (bpctDelta!=null ? ` — a ${Math.abs(bpctDelta).toFixed(1)} pt ${bpctDelta>=0?'improvement':'drop'} vs the prior month` : '')+
+      `.`;
+    const benchDelta = prevS ? q3s.benched-prevS.benched : null;
+    document.getElementById('exec-q3-kpis').innerHTML =
+      execKpiCard('Billability',execPct(q3s.bpct), bpctDelta!=null?`${Math.abs(bpctDelta).toFixed(1)} pts vs prior month`:null, bpctDelta!=null?bpctDelta>=0:null)+
+      execKpiCard('Headcount',q3s.hc, prevS?`${q3s.hc-prevS.hc>=0?'+':''}${q3s.hc-prevS.hc} vs prior month`:null, prevS?q3s.hc>=prevS.hc:null)+
+      execKpiCard('Benched',q3s.benched, benchDelta!=null?`${Math.abs(benchDelta)} vs prior month`:null, benchDelta!=null?benchDelta<=0:null);
+    document.getElementById('exec-q3-note').textContent = q3IsFinal
+      ? 'Q3 month(s) marked as final.'
+      : `${q3Months.map(execMonthName).join(', ')} not yet finalized — figures may change as timesheets are submitted.`;
+  }
+
+  // ── Watch list — every flag conditional on a real check ──
+  const flags=[];
+  if(q3Months.length && q2Months.length){
+    const q3LatestBench = monthStats[q3Months[q3Months.length-1]].benched;
+    const q2LatestBench = monthStats[q2Months[q2Months.length-1]].benched;
+    if(q3LatestBench > q2LatestBench){
+      flags.push({color:'#e24b4a',text:`Bench count rose from ${q2LatestBench} in ${execMonthName(q2Months[q2Months.length-1])} to ${q3LatestBench} in ${execMonthName(q3Months[q3Months.length-1])}. Worth reviewing before it affects Q3 billability.`});
     }
-    html += execChapter('#f59e0b',`Q3 · ${q3Months[0]}${q3Months.length>1?' – '+q3Months[q3Months.length-1]:''}${badge}`,'The current picture',body);
   }
-
-  // ── Chapter 6: Watch list ──
-  {
-    const flags = [];
-    // Chronic zero-billability: 0% in ALL months of the latest quarter available
-    const watchMonths = (q2Months.length?q2Months:q1Months);
-    if(watchMonths.length){
-      const zeroEveryMonth = {};
-      watchMonths.forEach(m=>{
-        filtEmps(employeesByMonth[m]||[], sharedFilter).forEach(e=>{
-          const r = calc(e);
-          if(!zeroEveryMonth[e.code]) zeroEveryMonth[e.code] = {name:e.name, months:0};
-          if(r.bpct===0) zeroEveryMonth[e.code].months++;
-        });
+  if(latestFinal){
+    const lf = monthStats[latestFinal];
+    const prevFinal = finalMonthsSorted.length>1 ? finalMonthsSorted[finalMonthsSorted.length-2] : months[months.indexOf(latestFinal)-1];
+    if(prevFinal && monthStats[prevFinal]){
+      const pMap={};
+      [...EX_PRACTICES].forEach(p=>{
+        const lfP = lf.emps.filter(e=>e.practice===p), prP = monthStats[prevFinal].emps.filter(e=>e.practice===p);
+        const lfB=lfP.reduce((a,e)=>a+e.billableMD,0), lfT=lfP.reduce((a,e)=>a+e.billableMD+e.nonBillableMD+e.intProjMD,0);
+        const prB=prP.reduce((a,e)=>a+e.billableMD,0), prT=prP.reduce((a,e)=>a+e.billableMD+e.nonBillableMD+e.intProjMD,0);
+        pMap[p] = {drop:(prT>0?prB/prT:0)-(lfT>0?lfB/lfT:0), hc:lfP.length};
       });
-      const chronic = Object.values(zeroEveryMonth).filter(x=>x.months===watchMonths.length);
-      if(chronic.length){
-        flags.push({level:'red', text:`<b>${chronic.length} resource${chronic.length>1?'s':''}</b> at 0% billability in every month of ${watchMonths[0]}–${watchMonths[watchMonths.length-1]}: ${chronic.map(c=>c.name).join(', ')}`});
+      const worst = Object.entries(pMap).sort((a,b)=>b[1].drop-a[1].drop)[0];
+      if(worst && worst[1].drop>0.05){
+        flags.push({color:'#ba7517',text:`${worst[0]} dropped ${(worst[1].drop*100).toFixed(1)} points between ${execMonthName(prevFinal)} and ${execMonthName(latestFinal)} — ${worst[1].hc} resources, worth monitoring.`});
       }
     }
-    // No action set among benched/ramping in the latest month
-    if(latestMonth){
-      const emps = filtEmps(employeesByMonth[latestMonth]||[], sharedFilter);
-      const benched = emps.filter(e=>calc(e).bpct<0.7);
-      const noAction = benched.filter(e=>!getLastKnownAction(e.code));
-      if(noAction.length){
-        flags.push({level:'amber', text:`<b>${noAction.length} of ${benched.length}</b> below-70% resources in ${latestMonth} have no action plan set.`});
-      }
-    }
-    // Practice with lowest billability in latest month
-    if(latestMonth){
-      const emps = filtEmps(employeesByMonth[latestMonth]||[], sharedFilter);
-      const byPrac={};
-      emps.forEach(e=>{ const p=e.practice||'Unknown'; if(!byPrac[p])byPrac[p]={bMD:0,tMD:0}; byPrac[p].bMD+=e.billableMD; byPrac[p].tMD+=e.billableMD+e.nonBillableMD+e.intProjMD; });
-      const worst = Object.entries(byPrac).map(([p,v])=>({p,pct:v.tMD>0?v.bMD/v.tMD:0})).sort((a,b)=>a.pct-b.pct)[0];
-      if(worst && worst.pct<0.5){
-        flags.push({level:'amber', text:`<b>${worst.p}</b> has the lowest billability in ${latestMonth} at ${(worst.pct*100).toFixed(1)}%.`});
-      }
-    }
-    let body = flags.length
-      ? flags.map(f=>`<div style="background:${f.level==='red'?'var(--red-bg)':'var(--amber-bg)'};color:${f.level==='red'?'var(--red)':'var(--amber)'};padding:10px 12px;border-radius:6px;margin-bottom:8px;font-size:12px">${f.text}</div>`).join('')
-      : `<div style="color:var(--text2);font-size:12px">No significant flags this period.</div>`;
-    html += execChapter('#ef4444','Watch List','',body);
   }
-
-  document.getElementById('execTimeline').innerHTML = html;
+  const toRelease = Object.entries(wfActions||{}).filter(([code,byMonth])=>{
+    const last = getLastKnownAction(code);
+    return last && last.toLowerCase().includes('to be released');
+  });
+  if(toRelease.length){
+    flags.push({color:'#ba7517',text:`${toRelease.length} resource${toRelease.length!==1?'s':''} tagged "To Be Released" — placement decisions needed.`});
+  }
+  if(!flags.length) flags.push({color:'var(--green)',text:'No significant flags this period.'});
+  document.getElementById('exec-watchlist').innerHTML = flags.map(f=>execFlag(f.color,f.text)).join('');
 }
 
 function toggleFinalizedMonth(m){
-  if(finalizedMonths.includes(m)) finalizedMonths = finalizedMonths.filter(x=>x!==m);
-  else finalizedMonths = [...finalizedMonths, m];
+  if(finalizedMonths.has(m)) finalizedMonths.delete(m);
+  else finalizedMonths.add(m);
   autoSave();
   renderExecSummary();
 }
